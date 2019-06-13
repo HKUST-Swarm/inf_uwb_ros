@@ -302,10 +302,12 @@ void UWBHelperNode::parse_header() {
     default:
         break;
     }
+
+    on_system_time_update();
     // printf("Found node header\n");
 
     if (node_num > 10) {
-        fprintf(stderr, "INVAILD node num %d, set to zero %d", node_num);
+        fprintf(stderr, "INVAILD node num %d, set to zero", node_num);
         node_num = 0;
     }
 

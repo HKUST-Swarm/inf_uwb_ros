@@ -106,6 +106,8 @@ private:
 
     void parse_header();
 
+    virtual void on_system_time_update() {};
+
     bool parse_remote_node_details_frame2();
     bool parse_remote_node_details_frame0();
 
