@@ -1,50 +1,72 @@
 #pragma once
 
-#include <string>
-#include <vector>
 #include <cstdint>
+#include <map>
 #include <set>
 #include <stdio.h>
-#include <map>
+#include <string>
+#include <vector>
 
+#pragma pack(push, 1)
+struct RemoteNodeFrame2 {
+    uint8_t role;
+    uint8_t id;
+    uint32_t distance : 24;
+    uint8_t fp_rssi;
+    uint8_t rx_rssi;
+    uint32_t rx_lps_systime;
+    char reserved[2];
+};
+#pragma pack(pop)
 
-#define REMOTE_NODE_HEADER_LEN 16
-#define NODE_HEADER_LEN 16
+#pragma pack(push, 1)
+struct RemoteNodeHeaderFrame0 {
+    uint8_t role;
+    uint8_t id;
+    uint16_t data_length;
+};
+#pragma pack(pop)
+
 typedef std::vector<uint8_t> Buffer;
 struct RemoteNodeInfo {
     double distance = -1;
     int dis_time;
-    double rssi = 0;
-    Buffer msg;
+    double fp_rssi = 0;
+    double rx_rssi = 0;
     bool active = false;
     int id = 0;
-    std::string to_str()
-    {
+    int role = 0;
+    std::string to_str() {
         char str[100] = {0};
-        sprintf (str, " id:%d dis:%f rssi:%f active:%d msg:%s",
-            id, distance, rssi, active, (char*)msg.data()
-        );
+        sprintf(str, " id:%d role %d dis:%f fprssi:%f rxrssi:%f active:%d", id,
+                role, distance, fp_rssi, rx_rssi, active);
         std::string _str(str);
         return _str;
     }
 };
 
-
-class UWBHelperNode
-{
+class UWBHelperNode {
 public:
-
     enum {
         WAIT_FOR_HEADER,
         WAIT_FOR_NODE_DETAIL,
         WAIT_FOR_NODE_CHECKSUM,
     };
 
-    UWBHelperNode(std::string serial_name, int baudrate, bool enable_debug_output=false);
+    enum {
+        NODE_FRAME0,
+        NODE_FRAME1,
+        NODE_FRAME2
+    };
+
+    UWBHelperNode(std::string serial_name, int baudrate,
+                  bool enable_debug_output = false);
     std::vector<uint8_t> buf;
     int self_id;
     int sys_time;
-    int active_node_num = 0;
+    int vaild_node_quantity = 0;
+
+    uint8_t recv_type_now = -1;
 
     void read_and_parse();
 
@@ -52,15 +74,18 @@ public:
 
 protected:
     void delete_first_n_buf(int _len);
-    bool parse_data(); 
+    bool parse_data();
 
     bool enable_debug_output;
 
-    virtual void on_broadcast_data_recv(int _id, int _recv_time, Buffer _msg);
-    void on_node_data_recv(int _id, int _dis, int _dis_time, int _rssi, Buffer msg = Buffer(0));
+    virtual void on_broadcast_data_recv(int _id, Buffer _msg);
+    void on_node_data_recv(RemoteNodeFrame2 nf);
 
     virtual void on_node_data_updated();
-    std::map<int,RemoteNodeInfo> nodes_info;
+    std::map<int, RemoteNodeInfo> nodes_info;
+
+    uint8_t frame_type();
+
 private:
     int serial_fd;
     void configure_port(int baudrate);
@@ -70,20 +95,19 @@ private:
     int serial_available_bytes();
 
     int read_status = WAIT_FOR_HEADER;
-    int read_wait_remote_node_num  = 0;
+    int read_wait_remote_node_num = 0;
 
     std::set<int> active_node_set;
 
-
-    int parse_node_header();
+    int parse_node_header_frame2();
+    int parse_node_header_frame0();
 
     bool is_node_msg_header();
 
     void parse_header();
 
-    bool parse_remote_node_details();
+    bool parse_remote_node_details_frame2();
+    bool parse_remote_node_details_frame0();
 
-
-    void serial_write(uint8_t* data, int len);
-
+    void serial_write(uint8_t *data, int len);
 };

@@ -54,16 +54,15 @@ protected:
         // this->send_broadcast_data(msg.data);
         send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
     }
-    virtual void on_broadcast_data_recv(int _id, int _recv_time, Buffer _msg) override
+    virtual void on_broadcast_data_recv(int _id, Buffer _msg) override
     {
-        UWBHelperNode::on_broadcast_data_recv(_id, _recv_time, _msg);
+        UWBHelperNode::on_broadcast_data_recv(_id, _msg);
         // printf("Recv broadcast data %s", (char*)_msg.data());
         
         incoming_broadcast_data data;
         data.header.stamp = ros::Time::now();
         data.lps_time = sys_time;
         data.remote_id = _id;
-        data.remote_recv_time = _recv_time;
         std::string ret((char*)_msg.data(), _msg.size());
         data.data = ret;
         broadcast_data_pub.publish(data);
@@ -87,18 +86,13 @@ protected:
             info.node_dis.push_back(nod.distance);
             info.recv_distance_time.push_back(nod.dis_time);
             info.active.push_back(nod.active);
-            info.rssi.push_back(nod.rssi);
-            info.data_available.push_back(nod.msg.size()!=0);
-            // std::string ret((char*)nod.msg.data(), nod.msg.size());
-            // Buffer bu
-            data_buffer buf;
-            buf.data = nod.msg;
-            info.datas.push_back(buf);
+            info.fp_rssi.push_back(nod.fp_rssi);
+            info.rx_rssi.push_back(nod.rx_rssi);
         }
         remote_node_pub.publish(info);
         if (count ++ % 50 == 1)
         {
-            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d\n",count, sys_time,self_id, info.remote_node_num, active_node_num);
+            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d\n",count, sys_time,self_id, info.remote_node_num, vaild_node_quantity);
             fflush(stdout);
         }
     }

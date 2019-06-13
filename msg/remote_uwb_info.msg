@@ -4,8 +4,7 @@ uint32 remote_node_num
 uint32 self_id
 uint32[] node_ids
 float32[] node_dis
-float32[] rssi
+float32[] fp_rssi
+float32[] rx_rssi
 uint32[] recv_distance_time
 bool[] active
-bool[] data_available
-data_buffer[] datas
