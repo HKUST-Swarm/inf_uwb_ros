@@ -386,6 +386,7 @@ void UWBHelperNode::on_node_data_recv(RemoteNodeFrame2 nf) {
     nodes_info[_id].fp_rssi = (double)nf.fp_rssi / -2.0;
     nodes_info[_id].active = true;
     nodes_info[_id].dis_time = nf.rx_lps_systime;
+    // printf("ID %d RX %ld\n", _id, nf.rx_lps_systime);
     nodes_info[_id].rx_rssi = nf.rx_rssi / -2.0;
     nodes_info[_id].role = nf.role;
 }

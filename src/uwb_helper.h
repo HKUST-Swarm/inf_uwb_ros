@@ -30,7 +30,7 @@ struct RemoteNodeHeaderFrame0 {
 typedef std::vector<uint8_t> Buffer;
 struct RemoteNodeInfo {
     double distance = -1;
-    int dis_time;
+    uint32_t dis_time;
     double fp_rssi = 0;
     double rx_rssi = 0;
     bool active = false;
