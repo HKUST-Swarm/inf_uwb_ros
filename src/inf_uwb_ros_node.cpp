@@ -55,8 +55,7 @@ protected:
         data.header.stamp = ros::Time::now();
         data.lps_time = sys_time;
         data.remote_id = _id;
-        std::string ret((char *)_msg.data(), _msg.size());
-        data.data = ret;
+        data.data = _msg;
         broadcast_data_pub.publish(data);
     }
 
