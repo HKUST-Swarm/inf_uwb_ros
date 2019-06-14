@@ -8,6 +8,7 @@
 #include <std_msgs/Header.h>
 #include <std_msgs/String.h>
 #include <unistd.h>
+#include <mutex>
 
 using namespace inf_uwb_ros;
 
@@ -15,14 +16,14 @@ using namespace inf_uwb_ros;
 
 class UWBRosNodeofNode : public UWBHelperNode {
     ros::Timer fast_timer, slow_timer;
-
+    std::mutex send_lock;
 public:
     UWBRosNodeofNode(std::string serial_name, int baudrate, ros::NodeHandle nh, bool enable_debug) : UWBHelperNode(serial_name, baudrate, false) {
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
 
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
-        fast_timer = nh.createTimer(ros::Duration(0.005), &UWBRosNodeofNode::fast_timer_callback, this);
+        fast_timer = nh.createTimer(ros::Duration(0.001), &UWBRosNodeofNode::fast_timer_callback, this);
         slow_timer = nh.createTimer(ros::Duration(0.02), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
     }
@@ -30,23 +31,32 @@ public:
 protected:
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
+        send_lock.lock();
         if (send_buffer.size() <= MAX_SEND_BYTES) {
-            this->send_broadcast_data(send_buffer);
-            send_buffer.clear();
+            if (send_buffer.size() > 0) {
+                this->send_broadcast_data(send_buffer);
+                send_buffer.clear();
+            }
         } else {
             std::vector<uint8_t> sub(&send_buffer[0], &send_buffer[MAX_SEND_BYTES]);
             this->send_broadcast_data(sub);
             send_buffer.erase(send_buffer.begin(), send_buffer.begin() + MAX_SEND_BYTES);
         }
+        send_lock.unlock();
     }
 
     void fast_timer_callback(const ros::TimerEvent &e) {
         this->read_and_parse();
     }
     virtual void on_send_broadcast_req(data_buffer msg) {
-        // this->send_broadcast_data(msg.data);
-        send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
+        this->send_broadcast_data(msg.data);
+        return;
+        // ROS_INFO("msg size %d", msg.data.size());
+        // send_lock.lock();
+        // send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
+        // send_lock.unlock();
     }
+    
     virtual void on_broadcast_data_recv(int _id, Buffer _msg) override {
         UWBHelperNode::on_broadcast_data_recv(_id, _msg);
         // printf("Recv broadcast data %s", (char*)_msg.data());
@@ -114,5 +124,6 @@ int main(int argc, char **argv) {
 
     UWBRosNodeofNode uwbhelper(serial_name, baudrate, nh, true);
 
-    ros::spin();
+    ros::MultiThreadedSpinner spinner(2);
+    spinner.spin();
 }

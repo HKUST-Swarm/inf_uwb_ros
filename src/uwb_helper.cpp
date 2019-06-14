@@ -119,14 +119,14 @@ void UWBHelperNode::read_and_parse() {
         uint8_t c = read_byte_from_serial();
         // printf("%c",c);
         buf.push_back(c);
-        bool ret = this->parse_data();
-        if (ret) {
+        int ret = this->parse_data();
+        if (ret == NODE_FRAME2) {
             this->on_node_data_updated();
         }
     }
 }
 
-bool UWBHelperNode::parse_data() {
+int UWBHelperNode::parse_data() {
     if (this->read_status == WAIT_FOR_HEADER) {
         this->parse_header();
     }
@@ -153,10 +153,10 @@ bool UWBHelperNode::parse_data() {
             uint8_t checksum = buf[0];
             this->delete_first_n_buf(1);
             this->read_status = WAIT_FOR_HEADER;
-            return true;
+            return this->recv_type_now;
         }
     }
-    return false;
+    return -1;
 }
 
 void UWBHelperNode::send_broadcast_data(std::vector<uint8_t> msg) {
@@ -316,7 +316,7 @@ void UWBHelperNode::parse_header() {
 }
 
 bool UWBHelperNode::parse_remote_node_details_frame2() {
-    int header_length = NODE_HEADER_LEN_FRAME2;
+    int header_length = sizeof(RemoteNodeFrame2);
 
     if (buf.size() < header_length)
         return false;
@@ -330,7 +330,7 @@ bool UWBHelperNode::parse_remote_node_details_frame2() {
 }
 
 bool UWBHelperNode::parse_remote_node_details_frame0() {
-    int header_length = NODE_HEADER_LEN_FRAME0;
+    int header_length = sizeof(RemoteNodeHeaderFrame0);
 
     if (buf.size() < header_length)
         return false;
@@ -339,6 +339,7 @@ bool UWBHelperNode::parse_remote_node_details_frame0() {
 
     if (nh.data_length == 0) {
         // printf("Zero datalength %d", nh.id);
+        return true;
     } else {
         // printf("D %d", nh.data_length);
         if (buf.size() <  REMOTE_HEADER_LENGTH0 + nh.data_length) {

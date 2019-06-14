@@ -74,7 +74,7 @@ public:
 
 protected:
     void delete_first_n_buf(int _len);
-    bool parse_data();
+    int parse_data();
 
     bool enable_debug_output;
 
