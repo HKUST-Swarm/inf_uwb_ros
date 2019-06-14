@@ -338,9 +338,9 @@ bool UWBHelperNode::parse_remote_node_details_frame0() {
     memcpy(&nh, buf.data(), sizeof(nh));
 
     if (nh.data_length == 0) {
-        printf("Zero datalength %d", nh.id);
+        // printf("Zero datalength %d", nh.id);
     } else {
-        printf("D %d", nh.data_length);
+        // printf("D %d", nh.data_length);
         if (buf.size() <  REMOTE_HEADER_LENGTH0 + nh.data_length) {
             return false;
         } else {
