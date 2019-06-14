@@ -12,7 +12,7 @@
 
 using namespace inf_uwb_ros;
 
-#define MAX_SEND_BYTES 250
+#define MAX_SEND_BYTES 40
 
 class UWBRosNodeofNode : public UWBHelperNode {
     ros::Timer fast_timer, slow_timer;
@@ -24,7 +24,7 @@ public:
 
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
         fast_timer = nh.createTimer(ros::Duration(0.001), &UWBRosNodeofNode::fast_timer_callback, this);
-        slow_timer = nh.createTimer(ros::Duration(0.02), &UWBRosNodeofNode::send_broadcast_data_callback, this);
+        slow_timer = nh.createTimer(ros::Duration(0.01), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
     }
 
@@ -32,6 +32,7 @@ protected:
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
         send_lock.lock();
+        // ROS_INFO("Send buffer %ld", send_buffer.size());
         if (send_buffer.size() <= MAX_SEND_BYTES) {
             if (send_buffer.size() > 0) {
                 this->send_broadcast_data(send_buffer);
@@ -49,12 +50,12 @@ protected:
         this->read_and_parse();
     }
     virtual void on_send_broadcast_req(data_buffer msg) {
-        this->send_broadcast_data(msg.data);
-        return;
+        // this->send_broadcast_data(msg.data);
+        // return;
         // ROS_INFO("msg size %d", msg.data.size());
-        // send_lock.lock();
-        // send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
-        // send_lock.unlock();
+        send_lock.lock();
+        send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
+        send_lock.unlock();
     }
     
     virtual void on_broadcast_data_recv(int _id, Buffer _msg) override {
