@@ -17,14 +17,21 @@ using namespace inf_uwb_ros;
 class UWBRosNodeofNode : public UWBHelperNode {
     ros::Timer fast_timer, slow_timer;
     std::mutex send_lock;
+
+    double send_freq = 100;
+    int send_buffer_size = 80;
+
 public:
     UWBRosNodeofNode(std::string serial_name, int baudrate, ros::NodeHandle nh, bool enable_debug) : UWBHelperNode(serial_name, baudrate, false) {
+        nh.param<int>("send_buffer", send_buffer_size, 80);
+        nh.param<double>("send_freq", send_freq, 100);
+
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
 
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
         fast_timer = nh.createTimer(ros::Duration(0.001), &UWBRosNodeofNode::fast_timer_callback, this);
-        slow_timer = nh.createTimer(ros::Duration(0.01), &UWBRosNodeofNode::send_broadcast_data_callback, this);
+        slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
     }
 
@@ -32,16 +39,19 @@ protected:
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
         send_lock.lock();
-        // ROS_INFO("Send buffer %ld", send_buffer.size());
-        if (send_buffer.size() <= MAX_SEND_BYTES) {
+        ROS_INFO_THROTTLE(1.0, "Send buffer %ld", send_buffer.size());
+        if (send_buffer.size() > 2 * send_buffer_size) {
+            ROS_WARN("Send buffer size %ld to big!", send_buffer.size());
+        }
+        if (send_buffer.size() <= send_buffer_size) {
             if (send_buffer.size() > 0) {
                 this->send_broadcast_data(send_buffer);
                 send_buffer.clear();
             }
         } else {
-            std::vector<uint8_t> sub(&send_buffer[0], &send_buffer[MAX_SEND_BYTES]);
+            std::vector<uint8_t> sub(&send_buffer[0], &send_buffer[send_buffer_size]);
             this->send_broadcast_data(sub);
-            send_buffer.erase(send_buffer.begin(), send_buffer.begin() + MAX_SEND_BYTES);
+            send_buffer.erase(send_buffer.begin(), send_buffer.begin() + send_buffer_size);
         }
         send_lock.unlock();
     }
@@ -110,6 +120,7 @@ private:
     ros::Subscriber recv_bdmsg;
 
     std::vector<uint8_t> send_buffer;
+
 };
 
 int main(int argc, char **argv) {
@@ -120,6 +131,7 @@ int main(int argc, char **argv) {
     ros::NodeHandle nh("uwb_node");
     int baudrate = 921600;
     std::string serial_name;
+
     nh.param<int>("baudrate", baudrate, 921600);
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
