@@ -2,7 +2,7 @@
     <arg name="serial_name" default="/dev/ttyUSB0" />
     <arg name="baudrate" default="921600" />
     <arg name="send_buffer" default="128" />
-    <arg name="send_freq" default="100" />
+    <arg name="send_freq" default="50" />
     <node pkg="inf_uwb_ros" name="uwb_node" type="inf_uwb_ros_node" output="screen">
         <param name="serial_name" value="$(arg serial_name)" />
         <param name="baudrate" value="$(arg baudrate)" type="int" />

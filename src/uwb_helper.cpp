@@ -265,7 +265,7 @@ UWBHelperNode::frame_type() {
 
     if (buf[0] == 0x55 && buf[1] == 0x03) {
         // Detected header 1
-        printf("Detected header1");
+        // printf("Detected header1");
         return NODE_FRAME1;
     }
 
@@ -291,6 +291,13 @@ void UWBHelperNode::parse_header() {
     switch (recv_type_now) {
     case NODE_FRAME0:
         node_num = this->parse_node_header_frame0();
+
+        if (node_num > 100 || node_num < 0) {
+            printf("Error Node num; throw");
+            return;
+        }
+        // printf("Msg recv, node num %d\n", node_num);
+
         break;
     case NODE_FRAME1:
         fprintf(stderr, "FRAME1 detected! Exit");
@@ -298,6 +305,11 @@ void UWBHelperNode::parse_header() {
         break;
     case NODE_FRAME2:
         node_num = this->parse_node_header_frame2();
+        if (node_num > 100 || node_num < 0) {
+            printf("Error Node num; throw");
+            return;
+        }
+        // printf("Node Frame Number %d\n", node_num);
         break;
     default:
         break;

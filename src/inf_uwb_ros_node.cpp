@@ -24,7 +24,7 @@ class UWBRosNodeofNode : public UWBHelperNode {
 public:
     UWBRosNodeofNode(std::string serial_name, int baudrate, ros::NodeHandle nh, bool enable_debug) : UWBHelperNode(serial_name, baudrate, false) {
         nh.param<int>("send_buffer", send_buffer_size, 80);
-        nh.param<double>("send_freq", send_freq, 100);
+        nh.param<double>("send_freq", send_freq, 50);
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
@@ -38,6 +38,7 @@ public:
 protected:
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
+        static int c = 0;
         send_lock.lock();
         ROS_INFO_THROTTLE(1.0, "Send buffer %ld", send_buffer.size());
         if (send_buffer.size() > 2 * send_buffer_size) {
@@ -45,6 +46,7 @@ protected:
         }
         if (send_buffer.size() <= send_buffer_size) {
             if (send_buffer.size() > 0) {
+                // if (c++ % 2 ==)
                 this->send_broadcast_data(send_buffer);
                 send_buffer.clear();
             }
@@ -70,7 +72,8 @@ protected:
     
     virtual void on_broadcast_data_recv(int _id, Buffer _msg) override {
         UWBHelperNode::on_broadcast_data_recv(_id, _msg);
-        // printf("Recv broadcast data %s", (char*)_msg.data());
+        // printf("ID %d Recv broadcast data %s", _id, (char*)_msg.data());
+        // printf("ID %d Recv broadcast data len %d\n", _id, _msg.size());
 
         incoming_broadcast_data data;
         data.header.stamp = ros::Time::now();
