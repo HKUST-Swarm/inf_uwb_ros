@@ -11,7 +11,7 @@
 struct RemoteNodeFrame2 {
     uint8_t role;
     uint8_t id;
-    uint32_t distance : 24;
+    int32_t distance : 24;
     uint8_t fp_rssi;
     uint8_t rx_rssi;
     uint32_t rx_lps_systime;
