@@ -25,12 +25,14 @@ public:
     UWBRosNodeofNode(std::string serial_name, int baudrate, ros::NodeHandle nh, bool enable_debug) : UWBHelperNode(serial_name, baudrate, false) {
         nh.param<int>("send_buffer", send_buffer_size, 80);
         nh.param<double>("send_freq", send_freq, 50);
+        double recv_freq = 100;
+        nh.param<double>("recv_freq", recv_freq, 100);
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
 
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
-        fast_timer = nh.createTimer(ros::Duration(0.001), &UWBRosNodeofNode::fast_timer_callback, this);
+        fast_timer = nh.createTimer(ros::Duration(1/recv_freq), &UWBRosNodeofNode::fast_timer_callback, this);
         slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
     }

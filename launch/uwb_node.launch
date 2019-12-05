@@ -9,5 +9,6 @@
         <param name="baudrate" value="$(arg baudrate)" type="int" />
         <param name="send_buffer" value="$(arg send_buffer)" type="int" />
         <param name="send_freq" value="$(arg send_freq)" type="double" />
+        <param name="recv_freq" value="100" type="double" />
     </node>
 </launch>
