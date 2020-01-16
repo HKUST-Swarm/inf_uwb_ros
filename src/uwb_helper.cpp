@@ -26,9 +26,10 @@ UWBHelperNode::UWBHelperNode(std::string serial_name,
     this->enable_debug_output = enable_debug_output;
     if (open_port(serial_name, baudrate)) {
         printf("Open port %s[%d] successful!\n\n", serial_name.c_str(), baudrate);
+        uwb_ok = true;
     } else {
-        printf("Can't open serial port;exit\n");
-        exit(-1);
+        printf("Can't open serial port;\n");
+        uwb_ok = false;
     }
 }
 
@@ -272,6 +273,8 @@ UWBHelperNode::frame_type() {
     if (buf[0] == 0x55 && buf[1] == 0x04) {
         return NODE_FRAME2;
     }
+
+    return -1;
 }
 
 void UWBHelperNode::parse_header() {
@@ -281,7 +284,12 @@ void UWBHelperNode::parse_header() {
 
     recv_type_now = frame_type();
 
-    int recv_nums = HEADER_LENGTH[recv_type_now];
+    if (recv_type_now < 0) {
+        delete_first_n_buf(1);
+        return;
+    }
+
+    size_t recv_nums = HEADER_LENGTH[recv_type_now];
 
     if (buf.size() < recv_nums) {
         return;
@@ -328,7 +336,7 @@ void UWBHelperNode::parse_header() {
 }
 
 bool UWBHelperNode::parse_remote_node_details_frame2() {
-    int header_length = sizeof(RemoteNodeFrame2);
+    size_t header_length = sizeof(RemoteNodeFrame2);
 
     if (buf.size() < header_length)
         return false;
@@ -342,7 +350,7 @@ bool UWBHelperNode::parse_remote_node_details_frame2() {
 }
 
 bool UWBHelperNode::parse_remote_node_details_frame0() {
-    int header_length = sizeof(RemoteNodeHeaderFrame0);
+    size_t header_length = sizeof(RemoteNodeHeaderFrame0);
 
     if (buf.size() < header_length)
         return false;

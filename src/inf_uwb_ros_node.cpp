@@ -9,6 +9,9 @@
 #include <std_msgs/String.h>
 #include <unistd.h>
 #include <mutex>
+#include <lcm/lcm-cpp.hpp>
+#include <inf_uwb_ros/SwarmData_t.hpp>
+#include <thread>
 
 using namespace inf_uwb_ros;
 
@@ -21,9 +24,14 @@ class UWBRosNodeofNode : public UWBHelperNode {
     double send_freq = 100;
     int send_buffer_size = 80;
 
+    lcm::LCM lcm;
+
 public:
-    UWBRosNodeofNode(std::string serial_name, int baudrate, ros::NodeHandle nh, bool enable_debug) : UWBHelperNode(serial_name, baudrate, false) {
+    UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
+        UWBHelperNode(serial_name, baudrate, false),
+        lcm(lcm_uri) {
         nh.param<int>("send_buffer", send_buffer_size, 80);
+        nh.param<int>("self_id", self_id, -1);
         nh.param<double>("send_freq", send_freq, 50);
         double recv_freq = 100;
         nh.param<double>("recv_freq", recv_freq, 100);
@@ -35,41 +43,84 @@ public:
         fast_timer = nh.createTimer(ros::Duration(1/recv_freq), &UWBRosNodeofNode::fast_timer_callback, this);
         slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
+
+
+        if (!lcm.good()) {
+            ROS_ERROR("LCM %s failed", lcm_uri.c_str());
+            // exit(-1);
+        }
+        lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
     }
 
+
+    int lcm_handle() {
+        return lcm.handle();
+    }
+
+
 protected:
+    void on_swarm_data_lcm(const lcm::ReceiveBuffer* rbuf,
+                const std::string& chan, 
+                const SwarmData_t* msg) {
+        // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
+        ros::Time stamp(msg->sec, msg->nsec);
+        incoming_broadcast_data data;
+        data.header.stamp = stamp;
+        data.lps_time = sys_time;
+        data.remote_id = msg->sender_id;
+        data.data = msg->mavlink_msg;
+        broadcast_data_pub.publish(data);
+    }
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
-        static int c = 0;
-        send_lock.lock();
-        ROS_INFO_THROTTLE(1.0, "Send buffer %ld", send_buffer.size());
-        if (send_buffer.size() > 2 * send_buffer_size) {
-            ROS_WARN("Send buffer size %ld to big!", send_buffer.size());
-        }
-        if (send_buffer.size() <= send_buffer_size) {
-            if (send_buffer.size() > 0) {
-                // if (c++ % 2 ==)
-                this->send_broadcast_data(send_buffer);
-                send_buffer.clear();
+        if (uwb_ok) {
+            static int c = 0;
+            send_lock.lock();
+            ROS_INFO_THROTTLE(1.0, "Send buffer %ld", send_buffer.size());
+            if (send_buffer.size() > 2 * send_buffer_size) {
+                ROS_WARN("Send buffer size %ld to big!", send_buffer.size());
             }
-        } else {
-            std::vector<uint8_t> sub(&send_buffer[0], &send_buffer[send_buffer_size]);
-            this->send_broadcast_data(sub);
-            send_buffer.erase(send_buffer.begin(), send_buffer.begin() + send_buffer_size);
+            if (send_buffer.size() <= send_buffer_size) {
+                if (send_buffer.size() > 0) {
+                    // if (c++ % 2 ==)
+                    this->send_broadcast_data(send_buffer);
+                    send_buffer.clear();
+                }
+            } else {
+                std::vector<uint8_t> sub(&send_buffer[0], &send_buffer[send_buffer_size]);
+                this->send_broadcast_data(sub);
+                send_buffer.erase(send_buffer.begin(), send_buffer.begin() + send_buffer_size);
+            }
+            send_lock.unlock();
         }
-        send_lock.unlock();
     }
 
     void fast_timer_callback(const ros::TimerEvent &e) {
         this->read_and_parse();
     }
+    
     virtual void on_send_broadcast_req(data_buffer msg) {
-        // this->send_broadcast_data(msg.data);
-        // return;
-        // ROS_INFO("msg size %d", msg.data.size());
-        send_lock.lock();
-        send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
-        send_lock.unlock();
+        if (msg.send_method == 0 || msg.send_method == 2) {
+            //Insert to UWB send buffer
+            send_lock.lock();
+            send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
+            send_lock.unlock();
+        }
+
+        if (msg.send_method == 1 || msg.send_method == 2) {
+            send_by_lcm(msg.data, msg.header.stamp);
+        }
+    }
+
+    virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
+        SwarmData_t data;
+        data.mavlink_msg_len = buf.size();
+        data.mavlink_msg = buf;
+        
+        data.sec = stamp.sec;
+        data.nsec = stamp.nsec;
+        data.sender_id = self_id;
+        lcm.publish("SWARM_DATA", &data);
     }
     
     virtual void on_broadcast_data_recv(int _id, Buffer _msg) override {
@@ -140,8 +191,14 @@ int main(int argc, char **argv) {
     nh.param<int>("baudrate", baudrate, 921600);
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
-    UWBRosNodeofNode uwbhelper(serial_name, baudrate, nh, true);
+    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=2", baudrate, nh, true);
+
+    std::thread thread([&] {
+        while(0 == uwbhelper.lcm_handle()) {
+        }
+    });
 
     ros::MultiThreadedSpinner spinner(2);
+
     spinner.spin();
 }

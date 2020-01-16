@@ -63,7 +63,7 @@ public:
                   bool enable_debug_output = false);
     std::vector<uint8_t> buf;
     int self_id;
-    int sys_time;
+    int sys_time = -1;
     int vaild_node_quantity = 0;
 
     uint8_t recv_type_now = -1;
@@ -71,6 +71,8 @@ public:
     void read_and_parse();
 
     void send_broadcast_data(std::vector<uint8_t> msg);
+
+    bool uwb_ok = false;
 
 protected:
     void delete_first_n_buf(int _len);
