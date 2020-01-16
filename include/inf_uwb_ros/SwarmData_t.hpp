@@ -23,6 +23,8 @@ class SwarmData_t
 
         int32_t    mavlink_msg_len;
 
+        int32_t    msg_id;
+
         std::vector< uint8_t > mavlink_msg;
 
     public:
@@ -133,6 +135,9 @@ int SwarmData_t::_encodeNoHash(void *buf, int offset, int maxlen) const
     tlen = __int32_t_encode_array(buf, offset + pos, maxlen - pos, &this->mavlink_msg_len, 1);
     if(tlen < 0) return tlen; else pos += tlen;
 
+    tlen = __int32_t_encode_array(buf, offset + pos, maxlen - pos, &this->msg_id, 1);
+    if(tlen < 0) return tlen; else pos += tlen;
+
     if(this->mavlink_msg_len > 0) {
         tlen = __byte_encode_array(buf, offset + pos, maxlen - pos, &this->mavlink_msg[0], this->mavlink_msg_len);
         if(tlen < 0) return tlen; else pos += tlen;
@@ -157,6 +162,9 @@ int SwarmData_t::_decodeNoHash(const void *buf, int offset, int maxlen)
     tlen = __int32_t_decode_array(buf, offset + pos, maxlen - pos, &this->mavlink_msg_len, 1);
     if(tlen < 0) return tlen; else pos += tlen;
 
+    tlen = __int32_t_decode_array(buf, offset + pos, maxlen - pos, &this->msg_id, 1);
+    if(tlen < 0) return tlen; else pos += tlen;
+
     if(this->mavlink_msg_len) {
         this->mavlink_msg.resize(this->mavlink_msg_len);
         tlen = __byte_decode_array(buf, offset + pos, maxlen - pos, &this->mavlink_msg[0], this->mavlink_msg_len);
@@ -173,13 +181,14 @@ int SwarmData_t::_getEncodedSizeNoHash() const
     enc_size += __int32_t_encoded_array_size(NULL, 1);
     enc_size += __int32_t_encoded_array_size(NULL, 1);
     enc_size += __int32_t_encoded_array_size(NULL, 1);
+    enc_size += __int32_t_encoded_array_size(NULL, 1);
     enc_size += __byte_encoded_array_size(NULL, this->mavlink_msg_len);
     return enc_size;
 }
 
 uint64_t SwarmData_t::_computeHash(const __lcm_hash_ptr *)
 {
-    uint64_t hash = 0x1a139fa64a445448LL;
+    uint64_t hash = 0xcd264c47570c7c69LL;
     return (hash<<1) + ((hash>>63)&1);
 }
 

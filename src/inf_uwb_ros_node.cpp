@@ -12,6 +12,7 @@
 #include <lcm/lcm-cpp.hpp>
 #include <inf_uwb_ros/SwarmData_t.hpp>
 #include <thread>
+#include <unordered_set>
 
 using namespace inf_uwb_ros;
 
@@ -25,6 +26,8 @@ class UWBRosNodeofNode : public UWBHelperNode {
     int send_buffer_size = 80;
 
     lcm::LCM lcm;
+
+    std::unordered_set<int32_t> sent_msgs;
 
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
@@ -63,13 +66,15 @@ protected:
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
-        ros::Time stamp(msg->sec, msg->nsec);
-        incoming_broadcast_data data;
-        data.header.stamp = stamp;
-        data.lps_time = sys_time;
-        data.remote_id = msg->sender_id;
-        data.data = msg->mavlink_msg;
-        broadcast_data_pub.publish(data);
+        if (sent_msgs.find(msg->msg_id) != sent_msgs.end()) {
+            ros::Time stamp(msg->sec, msg->nsec);
+            incoming_broadcast_data data;
+            data.header.stamp = stamp;
+            data.lps_time = sys_time;
+            data.remote_id = msg->sender_id;
+            data.data = msg->mavlink_msg;
+            broadcast_data_pub.publish(data);
+        }
     }
     // void
     void send_broadcast_data_callback(const ros::TimerEvent &e) {
@@ -98,7 +103,7 @@ protected:
     void fast_timer_callback(const ros::TimerEvent &e) {
         this->read_and_parse();
     }
-    
+
     virtual void on_send_broadcast_req(data_buffer msg) {
         if (msg.send_method == 0 || msg.send_method == 2) {
             //Insert to UWB send buffer
@@ -120,6 +125,10 @@ protected:
         data.sec = stamp.sec;
         data.nsec = stamp.nsec;
         data.sender_id = self_id;
+
+        data.msg_id = rand() + data.nsec;
+
+        sent_msgs.insert(data.msg_id);
         lcm.publish("SWARM_DATA", &data);
     }
     
