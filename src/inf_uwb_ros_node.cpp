@@ -51,6 +51,8 @@ public:
         if (!lcm.good()) {
             ROS_ERROR("LCM %s failed", lcm_uri.c_str());
             // exit(-1);
+        } else {
+            ROS_INFO("LCM OK");
         }
         lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
     }
@@ -66,7 +68,7 @@ protected:
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
-        if (sent_msgs.find(msg->msg_id) != sent_msgs.end()) {
+        if (sent_msgs.find(msg->msg_id) == sent_msgs.end()) {
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
             data.header.stamp = stamp;
@@ -118,6 +120,7 @@ protected:
     }
 
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
+        // ROS_INFO("Sending data %ld with LCM", buf.size());
         SwarmData_t data;
         data.mavlink_msg_len = buf.size();
         data.mavlink_msg = buf;
