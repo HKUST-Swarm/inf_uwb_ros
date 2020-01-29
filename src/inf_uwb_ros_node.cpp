@@ -71,6 +71,7 @@ protected:
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
+        // ROS_INFO("Recv remote %d", msg->msg_id);
         if (sent_msgs.find(msg->msg_id) == sent_msgs.end()) {
             ROS_INFO("On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
@@ -80,6 +81,8 @@ protected:
             data.remote_id = msg->sender_id;
             data.data = msg->mavlink_msg;
             broadcast_data_pub.publish(data);
+        } else {
+            sent_msgs.erase(msg->msg_id);
         }
     }
     // void
@@ -207,7 +210,7 @@ int main(int argc, char **argv) {
     nh.param<int>("baudrate", baudrate, 921600);
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
-    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=2", baudrate, nh, true);
+    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
 
     std::thread thread([&] {
         while(0 == uwbhelper.lcm_handle()) {
