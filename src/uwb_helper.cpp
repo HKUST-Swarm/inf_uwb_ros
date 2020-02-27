@@ -313,6 +313,7 @@ void UWBHelperNode::parse_header() {
         break;
     case NODE_FRAME2:
         node_num = this->parse_node_header_frame2();
+        on_system_time_update();
         if (node_num > 100 || node_num < 0) {
             printf("Error Node num; throw");
             return;
@@ -323,7 +324,6 @@ void UWBHelperNode::parse_header() {
         break;
     }
 
-    on_system_time_update();
     // printf("Found node header\n");
 
     if (node_num > 10) {
