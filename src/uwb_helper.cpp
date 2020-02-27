@@ -274,18 +274,20 @@ UWBHelperNode::frame_type() {
         return NODE_FRAME2;
     }
 
-    return -1;
+    return 255;
 }
 
 void UWBHelperNode::parse_header() {
+    // printf("parsing header...Buf size %d\n", buf.size());
     while (buf.size() > 2 && !is_node_msg_header()) {
         delete_first_n_buf(1);
     }
 
     recv_type_now = frame_type();
+    // printf("frame type %d\n", recv_type_now);
 
-    if (recv_type_now < 0) {
-        delete_first_n_buf(1);
+    if (recv_type_now == 255) {
+        // delete_first_n_buf(1);
         return;
     }
 
