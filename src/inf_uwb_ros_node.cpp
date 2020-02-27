@@ -27,6 +27,8 @@ class UWBRosNodeofNode : public UWBHelperNode {
 
     lcm::LCM lcm;
 
+    bool lcm_ok = false;
+
     std::unordered_set<int32_t> sent_msgs;
 
 public:
@@ -51,6 +53,9 @@ public:
         if (!lcm.good()) {
             ROS_ERROR("LCM %s failed", lcm_uri.c_str());
             // exit(-1);
+        } else {
+            ROS_INFO("LCM OK");
+            lcm_ok = true;
         }
         lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
     }
@@ -66,7 +71,9 @@ protected:
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
-        if (sent_msgs.find(msg->msg_id) != sent_msgs.end()) {
+        // ROS_INFO("Recv remote %d", msg->msg_id);
+        if (sent_msgs.find(msg->msg_id) == sent_msgs.end()) {
+            ROS_INFO("On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
             data.header.stamp = stamp;
@@ -74,6 +81,8 @@ protected:
             data.remote_id = msg->sender_id;
             data.data = msg->mavlink_msg;
             broadcast_data_pub.publish(data);
+        } else {
+            sent_msgs.erase(msg->msg_id);
         }
     }
     // void
@@ -105,19 +114,20 @@ protected:
     }
 
     virtual void on_send_broadcast_req(data_buffer msg) {
+        if (lcm_ok && (msg.send_method == 1 || msg.send_method == 2)) {
+            send_by_lcm(msg.data, msg.header.stamp);
+        }
+
         if (msg.send_method == 0 || msg.send_method == 2) {
             //Insert to UWB send buffer
             send_lock.lock();
             send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
             send_lock.unlock();
         }
-
-        if (msg.send_method == 1 || msg.send_method == 2) {
-            send_by_lcm(msg.data, msg.header.stamp);
-        }
     }
 
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
+        // ROS_INFO("Sending data %ld with LCM self_id %d", buf.size(), self_id);
         SwarmData_t data;
         data.mavlink_msg_len = buf.size();
         data.mavlink_msg = buf;
@@ -200,7 +210,7 @@ int main(int argc, char **argv) {
     nh.param<int>("baudrate", baudrate, 921600);
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
-    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=2", baudrate, nh, true);
+    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
 
     std::thread thread([&] {
         while(0 == uwbhelper.lcm_handle()) {

@@ -28,7 +28,7 @@ UWBHelperNode::UWBHelperNode(std::string serial_name,
         printf("Open port %s[%d] successful!\n\n", serial_name.c_str(), baudrate);
         uwb_ok = true;
     } else {
-        printf("Can't open serial port;\n");
+        printf("Can't open serial port; Use WiFi Only\n");
         uwb_ok = false;
     }
 }
