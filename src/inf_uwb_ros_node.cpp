@@ -13,6 +13,7 @@
 #include <inf_uwb_ros/SwarmData_t.hpp>
 #include <thread>
 #include <unordered_set>
+#include <signal.h>
 
 using namespace inf_uwb_ros;
 
@@ -198,6 +199,14 @@ private:
 
 };
 
+UWBRosNodeofNode * uwbhelper;
+
+void shutdown_handler(int sig) {
+    printf("Shutting down uwb .....\n");
+    uwbhelper->close_port();
+    exit(0);
+}
+
 int main(int argc, char **argv) {
     ROS_INFO("INF UWB ROS\nIniting\n");
 
@@ -210,10 +219,13 @@ int main(int argc, char **argv) {
     nh.param<int>("baudrate", baudrate, 921600);
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
-    UWBRosNodeofNode uwbhelper(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
-
+    uwbhelper = new UWBRosNodeofNode(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
+    signal(SIGINT, shutdown_handler);
+    signal(SIGTERM, shutdown_handler);
+    signal(SIGKILL, shutdown_handler);
+    signal(SIGQUIT, shutdown_handler);
     std::thread thread([&] {
-        while(0 == uwbhelper.lcm_handle()) {
+        while(0 == uwbhelper->lcm_handle()) {
         }
     });
 

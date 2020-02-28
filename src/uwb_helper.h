@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <unistd.h>
 
 #pragma pack(push, 1)
 struct RemoteNodeFrame2 {
@@ -74,6 +75,11 @@ public:
 
     bool uwb_ok = false;
 
+    void close_port() {
+        printf("Closing port\n");
+        close(serial_fd);
+    }
+
 protected:
     void delete_first_n_buf(int _len);
     int parse_data();
@@ -92,6 +98,8 @@ private:
     int serial_fd;
     void configure_port(int baudrate);
     bool open_port(std::string serial_name, int baudrate);
+
+
 
     uint8_t read_byte_from_serial();
     int serial_available_bytes();
