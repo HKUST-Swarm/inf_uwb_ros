@@ -74,7 +74,7 @@ protected:
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
         // ROS_INFO("Recv remote %d", msg->msg_id);
         if (sent_msgs.find(msg->msg_id) == sent_msgs.end()) {
-            ROS_INFO("On remote lcm data");
+            ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
             data.header.stamp = stamp;
