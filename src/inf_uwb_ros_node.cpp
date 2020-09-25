@@ -17,6 +17,13 @@
 
 using namespace inf_uwb_ros;
 
+#define BACKWARD_HAS_DW 1
+#include <backward.hpp>
+namespace backward
+{
+    backward::SignalHandling sh;
+}
+
 #define MAX_SEND_BYTES 40
 
 class UWBRosNodeofNode : public UWBHelperNode {
@@ -72,8 +79,9 @@ protected:
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
-        // ROS_INFO("Recv remote %d", msg->msg_id);
-        if (sent_msgs.find(msg->msg_id) == sent_msgs.end()) {
+	auto _msg_id = msg->msg_id;
+	//ROS_INFO("Recv remote %d", _msg_id);
+        if (sent_msgs.find(_msg_id) == sent_msgs.end()) {
             ROS_INFO("On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
@@ -82,8 +90,6 @@ protected:
             data.remote_id = msg->sender_id;
             data.data = msg->mavlink_msg;
             broadcast_data_pub.publish(data);
-        } else {
-            sent_msgs.erase(msg->msg_id);
         }
     }
     // void
