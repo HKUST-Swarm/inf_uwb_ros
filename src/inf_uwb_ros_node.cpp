@@ -82,7 +82,7 @@ protected:
 	auto _msg_id = msg->msg_id;
 	//ROS_INFO("Recv remote %d", _msg_id);
         if (sent_msgs.find(_msg_id) == sent_msgs.end()) {
-            ROS_INFO("On remote lcm data");
+            ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
             data.header.stamp = stamp;
