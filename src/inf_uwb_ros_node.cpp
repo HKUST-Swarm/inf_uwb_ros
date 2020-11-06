@@ -226,16 +226,16 @@ int main(int argc, char **argv) {
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
     uwbhelper = new UWBRosNodeofNode(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
-    signal(SIGINT, shutdown_handler);
-    signal(SIGTERM, shutdown_handler);
-    signal(SIGKILL, shutdown_handler);
-    signal(SIGQUIT, shutdown_handler);
+    // signal(SIGINT, shutdown_handler);
+    // signal(SIGTERM, shutdown_handler);
+    // signal(SIGKILL, shutdown_handler);
+    // signal(SIGQUIT, shutdown_handler);
     std::thread thread([&] {
         while(0 == uwbhelper->lcm_handle()) {
         }
     });
 
-    ros::MultiThreadedSpinner spinner(2);
-
-    spinner.spin();
+    // ros::MultiThreadedSpinner spinner(2);
+    // spinner.spin();
+    ros::spin();
 }

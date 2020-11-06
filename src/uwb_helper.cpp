@@ -113,7 +113,14 @@ void UWBHelperNode::configure_port(int baudrate) {
 }
 
 void UWBHelperNode::delete_first_n_buf(int _len) {
+    for (size_t i = 0; i < _len; i ++) {
+        sum_check = (sum_check + buf[i])%256;
+    }
     buf.erase(buf.begin(), buf.begin() + _len);
+}
+
+void UWBHelperNode::reset_checksum() {
+    sum_check = 0;
 }
 
 void UWBHelperNode::read_and_parse() {
@@ -153,8 +160,15 @@ int UWBHelperNode::parse_data() {
     if (this->read_status == WAIT_FOR_NODE_CHECKSUM) {
         if (buf.size() > 0) {
             uint8_t checksum = buf[0];
+            uint8_t _checksum = sum_check;
             this->delete_first_n_buf(1);
             this->read_status = WAIT_FOR_HEADER;
+            // printf("parse_data sum_check %d checksum %d\n", _checksum, checksum);
+            if (_checksum != checksum) {
+                printf("parse_data CHECKSUM ERROR sum_check %d checksum %d\n", sum_check, checksum);
+                return -1;
+            }
+
             return this->recv_type_now;
         }
     }
@@ -283,6 +297,8 @@ void UWBHelperNode::parse_header() {
     while (buf.size() > 2 && !is_node_msg_header()) {
         delete_first_n_buf(1);
     }
+
+    reset_checksum();
 
     recv_type_now = frame_type();
     // printf("frame type %d\n", recv_type_now);
