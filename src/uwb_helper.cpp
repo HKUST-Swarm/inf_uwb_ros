@@ -15,6 +15,7 @@
 #define NODE_HEADER_LEN_FRAME1 27
 #define NODE_HEADER_LEN_FRAME2 119
 #define REMOTE_HEADER_LENGTH0 4
+#define MAX_DRONE_NUM 10
 
 int HEADER_LENGTH[3] = {NODE_HEADER_LEN_FRAME0,
                         NODE_HEADER_LEN_FRAME1,
@@ -302,8 +303,9 @@ void UWBHelperNode::parse_header() {
     case NODE_FRAME0:
         node_num = this->parse_node_header_frame0();
 
-        if (node_num > 100 || node_num < 0) {
-            printf("Error Node num; throw");
+        if (node_num > MAX_DRONE_NUM || node_num < 0) {
+            printf("Error Node num; throw\n");
+            this->read_wait_remote_node_num = WAIT_FOR_HEADER;
             return;
         }
         // printf("Msg recv, node num %d\n", node_num);
@@ -318,8 +320,9 @@ void UWBHelperNode::parse_header() {
         if (sys_time > 0) {
             on_system_time_update();
         }
-        if (node_num > 100 || node_num < 0) {
-            printf("Error Node num; throw");
+        if (node_num > MAX_DRONE_NUM || node_num < 0) {
+            printf("Error Node num; throw\n");
+            this->read_wait_remote_node_num = WAIT_FOR_HEADER;
             return;
         }
         // printf("Node Frame Number %d\n", node_num);
@@ -330,8 +333,9 @@ void UWBHelperNode::parse_header() {
 
     // printf("Found node header\n");
 
-    if (node_num > 10) {
+    if (node_num > MAX_DRONE_NUM) {
         fprintf(stderr, "INVAILD node num %d, set to zero", node_num);
+        this->read_wait_remote_node_num = WAIT_FOR_HEADER;
         node_num = 0;
     }
 
