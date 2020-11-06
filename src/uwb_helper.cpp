@@ -15,7 +15,6 @@
 #define NODE_HEADER_LEN_FRAME1 27
 #define NODE_HEADER_LEN_FRAME2 119
 #define REMOTE_HEADER_LENGTH0 4
-#define MAX_DRONE_NUM 10
 
 int HEADER_LENGTH[3] = {NODE_HEADER_LEN_FRAME0,
                         NODE_HEADER_LEN_FRAME1,
@@ -182,10 +181,12 @@ void UWBHelperNode::send_broadcast_data(std::vector<uint8_t> msg) {
 void UWBHelperNode::on_node_data_updated() {
     for (auto it : nodes_info) {
         int _id = it.first;
-        if (active_node_set.find(_id) != active_node_set.end())
-            nodes_info[_id].active = true;
-        else
-            nodes_info[_id].active = false;
+        if (_id < MAX_DRONE_NUM) {
+            if (active_node_set.find(_id) != active_node_set.end())
+                nodes_info[_id].active = true;
+            else
+                nodes_info[_id].active = false;
+        }
     }
 
     if (this->enable_debug_output) {

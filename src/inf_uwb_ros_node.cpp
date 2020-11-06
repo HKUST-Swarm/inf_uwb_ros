@@ -182,13 +182,15 @@ protected:
         info.header.stamp = ros::Time::now();
         for (auto k : this->nodes_info) {
             int _id = k.first;
-            RemoteNodeInfo nod = k.second;
-            info.node_ids.push_back(_id);
-            info.node_dis.push_back(nod.distance);
-            info.recv_distance_time.push_back(nod.dis_time);
-            info.active.push_back(nod.active);
-            info.fp_rssi.push_back(nod.fp_rssi);
-            info.rx_rssi.push_back(nod.rx_rssi);
+            if (_id < MAX_DRONE_NUM) {
+                RemoteNodeInfo nod = k.second;
+                info.node_ids.push_back(_id);
+                info.node_dis.push_back(nod.distance);
+                info.recv_distance_time.push_back(nod.dis_time);
+                info.active.push_back(nod.active);
+                info.fp_rssi.push_back(nod.fp_rssi);
+                info.rx_rssi.push_back(nod.rx_rssi);
+            }
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {

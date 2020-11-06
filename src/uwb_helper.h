@@ -8,6 +8,8 @@
 #include <vector>
 #include <unistd.h>
 
+#define MAX_DRONE_NUM 10
+
 #pragma pack(push, 1)
 struct RemoteNodeFrame2 {
     uint8_t role;
