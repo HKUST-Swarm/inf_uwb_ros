@@ -14,6 +14,7 @@
 #include <thread>
 #include <unordered_set>
 #include <signal.h>
+#include <mutex>
 
 using namespace inf_uwb_ros;
 
@@ -36,8 +37,6 @@ class UWBRosNodeofNode : public UWBHelperNode {
     lcm::LCM lcm;
 
     bool lcm_ok = false;
-
-    std::unordered_set<int32_t> sent_msgs;
 
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
@@ -81,7 +80,7 @@ protected:
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
 	auto _msg_id = msg->msg_id;
 	//ROS_INFO("Recv remote %d", _msg_id);
-        if (sent_msgs.find(_msg_id) == sent_msgs.end()) {
+        if (msg->sender_id != self_id) {
             ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
@@ -145,7 +144,6 @@ protected:
 
         data.msg_id = rand() + data.nsec;
 
-        sent_msgs.insert(data.msg_id);
         lcm.publish("SWARM_DATA", &data);
     }
     
