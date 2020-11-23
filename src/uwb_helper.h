@@ -8,6 +8,8 @@
 #include <vector>
 #include <unistd.h>
 
+#define MAX_DRONE_NUM 10
+
 #pragma pack(push, 1)
 struct RemoteNodeFrame2 {
     uint8_t role;
@@ -69,6 +71,8 @@ public:
 
     uint8_t recv_type_now = -1;
 
+    int64_t sum_check = 0;
+
     void read_and_parse();
 
     void send_broadcast_data(std::vector<uint8_t> msg);
@@ -81,6 +85,7 @@ public:
     }
 
 protected:
+    void reset_checksum();
     void delete_first_n_buf(int _len);
     int parse_data();
 

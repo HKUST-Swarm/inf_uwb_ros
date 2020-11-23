@@ -89,7 +89,7 @@ protected:
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
 	auto _msg_id = msg->msg_id;
 	//ROS_INFO("Recv remote %d", _msg_id);
-        if (sent_msgs.find(_msg_id) == sent_msgs.end()) {
+        if (msg->sender_id != self_id) {
             ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
@@ -191,7 +191,6 @@ protected:
 
         data.msg_id = rand() + data.nsec;
 
-        sent_msgs.insert(data.msg_id);
         lcm.publish("SWARM_DATA", &data);
     }
     
@@ -228,13 +227,15 @@ protected:
         info.header.stamp = ros::Time::now();
         for (auto k : this->nodes_info) {
             int _id = k.first;
-            RemoteNodeInfo nod = k.second;
-            info.node_ids.push_back(_id);
-            info.node_dis.push_back(nod.distance);
-            info.recv_distance_time.push_back(nod.dis_time);
-            info.active.push_back(nod.active);
-            info.fp_rssi.push_back(nod.fp_rssi);
-            info.rx_rssi.push_back(nod.rx_rssi);
+            if (_id < MAX_DRONE_NUM) {
+                RemoteNodeInfo nod = k.second;
+                info.node_ids.push_back(_id);
+                info.node_dis.push_back(nod.distance);
+                info.recv_distance_time.push_back(nod.dis_time);
+                info.active.push_back(nod.active);
+                info.fp_rssi.push_back(nod.fp_rssi);
+                info.rx_rssi.push_back(nod.rx_rssi);
+            }
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {
@@ -272,16 +273,16 @@ int main(int argc, char **argv) {
     nh.param<std::string>("serial_name", serial_name, "/dev/ttyUSB0");
 
     uwbhelper = new UWBRosNodeofNode(serial_name, "udpm://224.0.0.251:7667?ttl=1", baudrate, nh, true);
-    signal(SIGINT, shutdown_handler);
-    signal(SIGTERM, shutdown_handler);
-    signal(SIGKILL, shutdown_handler);
-    signal(SIGQUIT, shutdown_handler);
+    // signal(SIGINT, shutdown_handler);
+    // signal(SIGTERM, shutdown_handler);
+    // signal(SIGKILL, shutdown_handler);
+    // signal(SIGQUIT, shutdown_handler);
     std::thread thread([&] {
         while(0 == uwbhelper->lcm_handle()) {
         }
     });
 
-    ros::MultiThreadedSpinner spinner(2);
-
-    spinner.spin();
+    // ros::MultiThreadedSpinner spinner(2);
+    // spinner.spin();
+    ros::spin();
 }

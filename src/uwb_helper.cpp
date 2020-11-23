@@ -112,7 +112,14 @@ void UWBHelperNode::configure_port(int baudrate) {
 }
 
 void UWBHelperNode::delete_first_n_buf(int _len) {
+    for (size_t i = 0; i < _len; i ++) {
+        sum_check = (sum_check + buf[i])%256;
+    }
     buf.erase(buf.begin(), buf.begin() + _len);
+}
+
+void UWBHelperNode::reset_checksum() {
+    sum_check = 0;
 }
 
 void UWBHelperNode::read_and_parse() {
@@ -152,8 +159,15 @@ int UWBHelperNode::parse_data() {
     if (this->read_status == WAIT_FOR_NODE_CHECKSUM) {
         if (buf.size() > 0) {
             uint8_t checksum = buf[0];
+            uint8_t _checksum = sum_check;
             this->delete_first_n_buf(1);
             this->read_status = WAIT_FOR_HEADER;
+            // printf("parse_data sum_check %d checksum %d\n", _checksum, checksum);
+            if (_checksum != checksum) {
+                printf("parse_data CHECKSUM ERROR sum_check %d checksum %d\n", sum_check, checksum);
+                return -1;
+            }
+
             return this->recv_type_now;
         }
     }
@@ -167,10 +181,12 @@ void UWBHelperNode::send_broadcast_data(std::vector<uint8_t> msg) {
 void UWBHelperNode::on_node_data_updated() {
     for (auto it : nodes_info) {
         int _id = it.first;
-        if (active_node_set.find(_id) != active_node_set.end())
-            nodes_info[_id].active = true;
-        else
-            nodes_info[_id].active = false;
+        if (_id < MAX_DRONE_NUM) {
+            if (active_node_set.find(_id) != active_node_set.end())
+                nodes_info[_id].active = true;
+            else
+                nodes_info[_id].active = false;
+        }
     }
 
     if (this->enable_debug_output) {
@@ -283,6 +299,8 @@ void UWBHelperNode::parse_header() {
         delete_first_n_buf(1);
     }
 
+    reset_checksum();
+
     recv_type_now = frame_type();
     // printf("frame type %d\n", recv_type_now);
 
@@ -302,8 +320,9 @@ void UWBHelperNode::parse_header() {
     case NODE_FRAME0:
         node_num = this->parse_node_header_frame0();
 
-        if (node_num > 100 || node_num < 0) {
-            printf("Error Node num; throw");
+        if (node_num > MAX_DRONE_NUM || node_num < 0) {
+            printf("Error Node num; throw\n");
+            this->read_wait_remote_node_num = WAIT_FOR_HEADER;
             return;
         }
         // printf("Msg recv, node num %d\n", node_num);
@@ -318,8 +337,9 @@ void UWBHelperNode::parse_header() {
         if (sys_time > 0) {
             on_system_time_update();
         }
-        if (node_num > 100 || node_num < 0) {
-            printf("Error Node num; throw");
+        if (node_num > MAX_DRONE_NUM || node_num < 0) {
+            printf("Error Node num; throw\n");
+            this->read_wait_remote_node_num = WAIT_FOR_HEADER;
             return;
         }
         // printf("Node Frame Number %d\n", node_num);
@@ -330,8 +350,9 @@ void UWBHelperNode::parse_header() {
 
     // printf("Found node header\n");
 
-    if (node_num > 10) {
+    if (node_num > MAX_DRONE_NUM) {
         fprintf(stderr, "INVAILD node num %d, set to zero", node_num);
+        this->read_wait_remote_node_num = WAIT_FOR_HEADER;
         node_num = 0;
     }
 
