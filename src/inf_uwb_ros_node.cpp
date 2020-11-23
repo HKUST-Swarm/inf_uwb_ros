@@ -145,7 +145,6 @@ protected:
     void incoming_bspline_data_callback(const lcm::ReceiveBuffer* rbuf,
         const std::string& chan, 
         const Bspline_t* msg) {
-        ROS_INFO("BSPLINE RECV");
         if(msg->drone_id != self_id) 
         {
             bspline::Bspline bspl;
