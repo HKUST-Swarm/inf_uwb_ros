@@ -39,8 +39,6 @@ class UWBRosNodeofNode : public UWBHelperNode {
 
     bool lcm_ok = false;
 
-    std::unordered_set<int32_t> sent_msgs;
-
     ros::Publisher swarm_traj_pub;
     ros::Subscriber swarm_traj_sub;
 
@@ -57,6 +55,7 @@ public:
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
         swarm_traj_pub = nh.advertise<bspline::Bspline>("/planning/swarm_traj_recv", 10);
+
         swarm_traj_sub = nh.subscribe("/planning/swarm_traj_send", 10, &UWBRosNodeofNode::broadcast_bspline, this, ros::TransportHints().tcpNoDelay());
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
         fast_timer = nh.createTimer(ros::Duration(1/recv_freq), &UWBRosNodeofNode::fast_timer_callback, this);
@@ -72,6 +71,7 @@ public:
             lcm_ok = true;
         }
         lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
+        lcm.subscribe("SWARM_TRAJ", &UWBRosNodeofNode::incoming_bspline_data_callback, this);
     }
 
 
@@ -141,9 +141,38 @@ protected:
         }
     }
 
+
     void incoming_bspline_data_callback(const lcm::ReceiveBuffer* rbuf,
         const std::string& chan, 
         const Bspline_t* msg) {
+        ROS_INFO("BSPLINE RECV");
+        if(msg->drone_id != self_id) 
+        {
+            bspline::Bspline bspl;
+            bspl.start_time = ros::Time(msg->start_time_sec, msg->start_time_nsec);
+            bspl.drone_id = msg->drone_id;
+            bspl.order = msg->order;
+            bspl.traj_id = msg->traj_id;
+
+            for (int i = 0; i < msg->knots_num; i++) {
+                bspl.knots.push_back(msg->knots[i]);
+            }
+
+            for (int i = 0; i < msg->pos_pts_num; i++) {
+                geometry_msgs::Point pt;
+                pt.x = msg->pos_pts_x[i];
+                pt.y = msg->pos_pts_y[i];
+                pt.z = msg->pos_pts_z[i];
+                bspl.pos_pts.push_back(pt);
+            }
+
+            for (int i = 0; i < msg->yaw_pts_num; i++) {
+                bspl.yaw_pts.push_back(msg->yaw_pts[i]);
+            }
+
+            bspl.yaw_dt = msg->yaw_dt;
+            swarm_traj_pub.publish(bspl);
+        }
 
     }
 
@@ -158,6 +187,10 @@ protected:
 
         for (size_t i = 0; i < bspl.knots.size(); i ++) {
             _bspl.knots.push_back(bspl.knots[i]);
+        }
+
+        _bspl.pos_pts_num = bspl.pos_pts.size();
+        for (size_t i = 0; i < bspl.pos_pts.size(); i ++) {
             _bspl.pos_pts_x.push_back(bspl.pos_pts[i].x);
             _bspl.pos_pts_y.push_back(bspl.pos_pts[i].y);
             _bspl.pos_pts_z.push_back(bspl.pos_pts[i].z);
@@ -172,8 +205,8 @@ protected:
         _bspl.yaw_dt = bspl.yaw_dt;
 
         _bspl.msg_id = rand() + _bspl.start_time_nsec + _bspl.traj_id;
-        sent_msgs.insert(_bspl.msg_id);
-        ROS_INFO("BSPLINE SIZE %ld", _bspl.getEncodedSize());
+        // sent_msgs.insert(_bspl.msg_id);
+        // ROS_INFO("BSPLINE SIZE %ld", _bspl.getEncodedSize());
 
         lcm.publish("SWARM_TRAJ", &_bspl);
 

@@ -29,6 +29,8 @@ class Bspline_t
 
         std::vector< float > knots;
 
+        int32_t    pos_pts_num;
+
         std::vector< float > pos_pts_x;
 
         std::vector< float > pos_pts_y;
@@ -162,18 +164,21 @@ int Bspline_t::_encodeNoHash(void *buf, int offset, int maxlen) const
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num > 0) {
-        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_x[0], this->knots_num);
+    tlen = __int32_t_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_num, 1);
+    if(tlen < 0) return tlen; else pos += tlen;
+
+    if(this->pos_pts_num > 0) {
+        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_x[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num > 0) {
-        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_y[0], this->knots_num);
+    if(this->pos_pts_num > 0) {
+        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_y[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num > 0) {
-        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_z[0], this->knots_num);
+    if(this->pos_pts_num > 0) {
+        tlen = __float_encode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_z[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
@@ -222,21 +227,24 @@ int Bspline_t::_decodeNoHash(const void *buf, int offset, int maxlen)
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num) {
-        this->pos_pts_x.resize(this->knots_num);
-        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_x[0], this->knots_num);
+    tlen = __int32_t_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_num, 1);
+    if(tlen < 0) return tlen; else pos += tlen;
+
+    if(this->pos_pts_num) {
+        this->pos_pts_x.resize(this->pos_pts_num);
+        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_x[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num) {
-        this->pos_pts_y.resize(this->knots_num);
-        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_y[0], this->knots_num);
+    if(this->pos_pts_num) {
+        this->pos_pts_y.resize(this->pos_pts_num);
+        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_y[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
-    if(this->knots_num) {
-        this->pos_pts_z.resize(this->knots_num);
-        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_z[0], this->knots_num);
+    if(this->pos_pts_num) {
+        this->pos_pts_z.resize(this->pos_pts_num);
+        tlen = __float_decode_array(buf, offset + pos, maxlen - pos, &this->pos_pts_z[0], this->pos_pts_num);
         if(tlen < 0) return tlen; else pos += tlen;
     }
 
@@ -268,9 +276,10 @@ int Bspline_t::_getEncodedSizeNoHash() const
     enc_size += __int64_t_encoded_array_size(NULL, 1);
     enc_size += __int32_t_encoded_array_size(NULL, 1);
     enc_size += __float_encoded_array_size(NULL, this->knots_num);
-    enc_size += __float_encoded_array_size(NULL, this->knots_num);
-    enc_size += __float_encoded_array_size(NULL, this->knots_num);
-    enc_size += __float_encoded_array_size(NULL, this->knots_num);
+    enc_size += __int32_t_encoded_array_size(NULL, 1);
+    enc_size += __float_encoded_array_size(NULL, this->pos_pts_num);
+    enc_size += __float_encoded_array_size(NULL, this->pos_pts_num);
+    enc_size += __float_encoded_array_size(NULL, this->pos_pts_num);
     enc_size += __int32_t_encoded_array_size(NULL, 1);
     enc_size += __float_encoded_array_size(NULL, this->yaw_pts_num);
     enc_size += __float_encoded_array_size(NULL, 1);
@@ -280,7 +289,7 @@ int Bspline_t::_getEncodedSizeNoHash() const
 
 uint64_t Bspline_t::_computeHash(const __lcm_hash_ptr *)
 {
-    uint64_t hash = 0x6a12a198d2b2ebdaLL;
+    uint64_t hash = 0xf7ae2655d320e128LL;
     return (hash<<1) + ((hash>>63)&1);
 }
 

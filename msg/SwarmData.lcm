@@ -15,11 +15,15 @@ struct Bspline_t {
     int32_t drone_id;
     int32_t order;
     int64_t traj_id;
+    
     int32_t knots_num;
     float knots[knots_num];
-    float pos_pts_x[knots_num];
-    float pos_pts_y[knots_num];
-    float pos_pts_z[knots_num];
+
+    int32_t pos_pts_num;
+    float pos_pts_x[pos_pts_num];
+    float pos_pts_y[pos_pts_num];
+    float pos_pts_z[pos_pts_num];
+
     int32_t yaw_pts_num;
     float yaw_pts[yaw_pts_num];
     float yaw_dt;
