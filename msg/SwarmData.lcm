@@ -6,3 +6,23 @@ struct SwarmData_t {
     int32_t msg_id;
     byte mavlink_msg[mavlink_msg_len];
 }
+
+
+
+struct Bspline_t {
+    int32_t start_time_sec;
+    int32_t start_time_nsec;
+    int32_t drone_id;
+    int32_t order;
+    int64_t traj_id;
+    int32_t knots_num;
+    float knots[knots_num];
+    float pos_pts_x[knots_num];
+    float pos_pts_y[knots_num];
+    float pos_pts_z[knots_num];
+    int32_t yaw_pts_num;
+    float yaw_pts[yaw_pts_num];
+    float yaw_dt;
+
+    int32_t msg_id;
+}

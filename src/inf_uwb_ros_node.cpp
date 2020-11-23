@@ -14,6 +14,8 @@
 #include <thread>
 #include <unordered_set>
 #include <signal.h>
+#include <bspline/Bspline.h>
+#include <inf_uwb_ros/Bspline_t.hpp>
 
 using namespace inf_uwb_ros;
 
@@ -39,6 +41,9 @@ class UWBRosNodeofNode : public UWBHelperNode {
 
     std::unordered_set<int32_t> sent_msgs;
 
+    ros::Publisher swarm_traj_pub;
+    ros::Subscriber swarm_traj_sub;
+
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
         UWBHelperNode(serial_name, baudrate, false),
@@ -51,7 +56,8 @@ public:
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
-
+        swarm_traj_pub = nh.advertise<bspline::Bspline>("/planning/swarm_traj_recv", 10);
+        swarm_traj_sub = nh.subscribe("/planning/swarm_traj_send", 10, &UWBRosNodeofNode::broadcast_bspline, this, ros::TransportHints().tcpNoDelay());
         recv_bdmsg = nh.subscribe("send_broadcast_data", 1, &UWBRosNodeofNode::on_send_broadcast_req, this, ros::TransportHints().tcpNoDelay());
         fast_timer = nh.createTimer(ros::Duration(1/recv_freq), &UWBRosNodeofNode::fast_timer_callback, this);
         slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
@@ -75,6 +81,8 @@ public:
 
 
 protected:
+
+
     void on_swarm_data_lcm(const lcm::ReceiveBuffer* rbuf,
                 const std::string& chan, 
                 const SwarmData_t* msg) {
@@ -131,6 +139,44 @@ protected:
             send_buffer.insert(send_buffer.end(), msg.data.begin(), msg.data.end());
             send_lock.unlock();
         }
+    }
+
+    void incoming_bspline_data_callback(const lcm::ReceiveBuffer* rbuf,
+        const std::string& chan, 
+        const Bspline_t* msg) {
+
+    }
+
+    void broadcast_bspline(const bspline::Bspline & bspl) {
+        Bspline_t _bspl;
+        _bspl.start_time_sec = bspl.start_time.sec;
+        _bspl.start_time_nsec = bspl.start_time.nsec;
+        _bspl.drone_id = bspl.drone_id;
+        _bspl.order = bspl.order;
+        _bspl.traj_id = bspl.traj_id;
+        _bspl.knots_num = bspl.knots.size();
+
+        for (size_t i = 0; i < bspl.knots.size(); i ++) {
+            _bspl.knots.push_back(bspl.knots[i]);
+            _bspl.pos_pts_x.push_back(bspl.pos_pts[i].x);
+            _bspl.pos_pts_y.push_back(bspl.pos_pts[i].y);
+            _bspl.pos_pts_z.push_back(bspl.pos_pts[i].z);
+        }
+
+        _bspl.yaw_pts_num = bspl.yaw_pts.size();
+
+        for (size_t i = 0; i < bspl.yaw_pts.size(); i ++) {
+            _bspl.yaw_pts.push_back(bspl.yaw_pts[i]);
+        }
+
+        _bspl.yaw_dt = bspl.yaw_dt;
+
+        _bspl.msg_id = rand() + _bspl.start_time_nsec + _bspl.traj_id;
+        sent_msgs.insert(_bspl.msg_id);
+        ROS_INFO("BSPLINE SIZE %ld", _bspl.getEncodedSize());
+
+        lcm.publish("SWARM_TRAJ", &_bspl);
+
     }
 
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
