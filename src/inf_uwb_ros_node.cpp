@@ -1,7 +1,7 @@
 #include "uwb_helper.h"
-#include <inf_uwb_ros/data_buffer.h>
-#include <inf_uwb_ros/incoming_broadcast_data.h>
-#include <inf_uwb_ros/remote_uwb_info.h>
+#include <swarmcomm_msgs/data_buffer.h>
+#include <swarmcomm_msgs/incoming_broadcast_data.h>
+#include <swarmcomm_msgs/remote_uwb_info.h>
 #include <iostream>
 #include <ros/ros.h>
 #include <sensor_msgs/TimeReference.h>
@@ -10,14 +10,14 @@
 #include <unistd.h>
 #include <mutex>
 #include <lcm/lcm-cpp.hpp>
-#include <inf_uwb_ros/SwarmData_t.hpp>
+#include <swarmcomm_msgs/SwarmData_t.hpp>
 #include <thread>
 #include <unordered_set>
 #include <signal.h>
 #include <bspline/Bspline.h>
-#include <inf_uwb_ros/Bspline_t.hpp>
+#include <swarmcomm_msgs/Bspline_t.hpp>
 
-using namespace inf_uwb_ros;
+using namespace swarmcomm_msgs;
 
 #define BACKWARD_HAS_DW 1
 #include <backward.hpp>

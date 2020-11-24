@@ -15,27 +15,16 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  swarmcomm_msgs
 )
 
 find_package(lcm REQUIRED)
 
 
-add_message_files(
-        FILES
-        remote_uwb_info.msg
-        incoming_broadcast_data.msg
-        data_buffer.msg
-)
-
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-)
-
 catkin_package(
  #INCLUDE_DIRS include
 #  LIBRARIES infinity_uwb_ros
- CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs swarmcomm_msgs
 #  DEPENDS system_lib
 )
 
@@ -55,11 +44,6 @@ add_executable(${PROJECT_NAME}_node
   src/inf_uwb_ros_node.cpp
   src/uwb_helper.cpp
 )
-
-
-
-
-
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
