@@ -12,6 +12,7 @@
         <param name="send_freq" value="$(arg send_freq)" type="double" />
         <param name="recv_freq" value="100" type="double" />
         <param name="self_id" value="$(arg self_id)" type="int"/>
-        <remap from="/planning/swarm_traj_send" to="/planning/swarm_traj" />
+        <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj" />
     </node>
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
 </launch>

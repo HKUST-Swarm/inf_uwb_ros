@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <bspline/Bspline.h>
 #include <swarmcomm_msgs/Bspline_t.hpp>
+#include <queue>
 
 using namespace swarmcomm_msgs;
 
@@ -27,6 +28,7 @@ namespace backward
 }
 
 #define MAX_SEND_BYTES 40
+
 
 class UWBRosNodeofNode : public UWBHelperNode {
     ros::Timer fast_timer, slow_timer;
@@ -42,6 +44,9 @@ class UWBRosNodeofNode : public UWBHelperNode {
     ros::Publisher swarm_traj_pub;
     ros::Subscriber swarm_traj_sub;
 
+    int latency_buffer_size;
+    bool sim_latency;
+
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
         UWBHelperNode(serial_name, baudrate, false),
@@ -51,6 +56,9 @@ public:
         nh.param<double>("send_freq", send_freq, 50);
         double recv_freq = 100;
         nh.param<double>("recv_freq", recv_freq, 100);
+
+        nh.param<int>("latency_buffer_size", latency_buffer_size, 100);
+        nh.param<bool>("sim_latency", sim_latency, false);
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
@@ -211,11 +219,24 @@ protected:
 
     }
 
+    std::queue<std::vector<uint8_t>> buf_queue;
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
         // ROS_INFO("Sending data %ld with LCM self_id %d", buf.size(), self_id);
         SwarmData_t data;
-        data.mavlink_msg_len = buf.size();
-        data.mavlink_msg = buf;
+        if (!sim_latency) {
+            data.mavlink_msg_len = buf.size();
+            data.mavlink_msg = buf;
+        } else {
+            buf_queue.push(buf);
+            if(buf_queue.size() > latency_buffer_size) {
+                auto _buf = buf_queue.front();
+                data.mavlink_msg = _buf;
+                data.mavlink_msg_len = _buf.size();
+                buf_queue.pop();
+            } else {
+                return;
+            }
+        }
         
         data.sec = stamp.sec;
         data.nsec = stamp.nsec;
