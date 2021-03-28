@@ -126,14 +126,15 @@ void UWBHelperNode::read_and_parse() {
     while (serial_available_bytes() > 0) {
         uint8_t c = read_byte_from_serial();
         // printf("%c",c);
+        // std::cout << "Read status" << this->read_status << std::endl;
         buf.push_back(c);
         int ret = this->parse_data();
         if (ret == NODE_FRAME2) {
             this->on_node_data_updated();
         }
-        if (ret == -1) {
-            this->read_status = WAIT_FOR_HEADER;
-        }
+        // if (ret == -1) {
+        //     this->read_status = WAIT_FOR_HEADER;
+        // }
     }
 }
 
@@ -297,7 +298,7 @@ UWBHelperNode::frame_type() {
 }
 
 void UWBHelperNode::parse_header() {
-    // printf("parsing header...Buf size %d\n", buf.size());
+    // std::cout << "parsing header...Buf size %d" << buf.size();
     while (buf.size() > 2 && !is_node_msg_header()) {
         delete_first_n_buf(1);
     }
