@@ -16,6 +16,7 @@
 #include <signal.h>
 #include <bspline/Bspline.h>
 #include <swarmcomm_msgs/Bspline_t.hpp>
+#include <queue>
 
 using namespace swarmcomm_msgs;
 
@@ -27,6 +28,7 @@ namespace backward
 }
 
 #define MAX_SEND_BYTES 40
+
 
 class UWBRosNodeofNode : public UWBHelperNode {
     ros::Timer fast_timer, slow_timer;
@@ -42,6 +44,9 @@ class UWBRosNodeofNode : public UWBHelperNode {
     ros::Publisher swarm_traj_pub;
     ros::Subscriber swarm_traj_sub;
 
+    int latency_buffer_size;
+    bool sim_latency;
+
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
         UWBHelperNode(serial_name, baudrate, false),
@@ -51,6 +56,9 @@ public:
         nh.param<double>("send_freq", send_freq, 50);
         double recv_freq = 100;
         nh.param<double>("recv_freq", recv_freq, 100);
+
+        nh.param<int>("latency_buffer_size", latency_buffer_size, 100);
+        nh.param<bool>("sim_latency", sim_latency, false);
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
@@ -82,15 +90,16 @@ public:
 
 protected:
 
-
+    int count_remote = 0;
     void on_swarm_data_lcm(const lcm::ReceiveBuffer* rbuf,
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
 	auto _msg_id = msg->msg_id;
 	//ROS_INFO("Recv remote %d", _msg_id);
+        count_remote ++;
         if (msg->sender_id != self_id) {
-            ROS_INFO_THROTTLE(1.0, "On remote lcm data");
+            // ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
             data.header.stamp = stamp;
@@ -105,7 +114,6 @@ protected:
         if (uwb_ok) {
             static int c = 0;
             send_lock.lock();
-            ROS_INFO_THROTTLE(1.0, "Send buffer %ld", send_buffer.size());
             if (send_buffer.size() > 2 * send_buffer_size) {
                 ROS_WARN("Send buffer size %ld to big!", send_buffer.size());
             }
@@ -211,11 +219,24 @@ protected:
 
     }
 
+    std::queue<std::vector<uint8_t>> buf_queue;
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
         // ROS_INFO("Sending data %ld with LCM self_id %d", buf.size(), self_id);
         SwarmData_t data;
-        data.mavlink_msg_len = buf.size();
-        data.mavlink_msg = buf;
+        if (!sim_latency) {
+            data.mavlink_msg_len = buf.size();
+            data.mavlink_msg = buf;
+        } else {
+            buf_queue.push(buf);
+            if(buf_queue.size() > latency_buffer_size) {
+                auto _buf = buf_queue.front();
+                data.mavlink_msg = _buf;
+                data.mavlink_msg_len = _buf.size();
+                buf_queue.pop();
+            } else {
+                return;
+            }
+        }
         
         data.sec = stamp.sec;
         data.nsec = stamp.nsec;
@@ -271,7 +292,8 @@ protected:
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {
-            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d\n", count, sys_time, self_id, info.remote_node_num, vaild_node_quantity);
+            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld lcm_msg %d/s\n", count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), count_remote*2);
+            count_remote = 0;
             fflush(stdout);
         }
     }
@@ -314,7 +336,7 @@ int main(int argc, char **argv) {
         }
     });
 
-    // ros::MultiThreadedSpinner spinner(2);
-    // spinner.spin();
-    ros::spin();
+    ros::MultiThreadedSpinner spinner(2);
+    spinner.spin();
+    // ros::spin();
 }
