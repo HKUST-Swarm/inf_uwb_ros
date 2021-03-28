@@ -131,6 +131,9 @@ void UWBHelperNode::read_and_parse() {
         if (ret == NODE_FRAME2) {
             this->on_node_data_updated();
         }
+        if (ret == -1) {
+            this->read_status = WAIT_FOR_HEADER;
+        }
     }
 }
 
