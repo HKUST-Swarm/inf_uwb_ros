@@ -332,8 +332,9 @@ void UWBHelperNode::parse_header() {
 
         break;
     case NODE_FRAME1:
-        fprintf(stderr, "FRAME1 detected! Exit");
-        exit(-1);
+        fprintf(stderr, "FRAME1 detected!");
+        this->read_wait_remote_node_num = WAIT_FOR_HEADER;
+        return;
         break;
     case NODE_FRAME2:
         node_num = this->parse_node_header_frame2();
