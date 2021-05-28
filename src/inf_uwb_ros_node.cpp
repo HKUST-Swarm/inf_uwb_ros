@@ -18,14 +18,27 @@
 #include <swarmcomm_msgs/Bspline_t.hpp>
 #include <queue>
 
+// Msg for swarm exploration
+#include <plan_env/ChunkStamps.h>  
+#include <plan_env/ChunkData.h>
+#include <exploration_manager/DroneState.h>
+#include <exploration_manager/PairOpt.h>
+#include <exploration_manager/PairOptResponse.h>
+
+#include <swarmcomm_msgs/ChunkStamps_t.hpp>
+#include <swarmcomm_msgs/ChunkData_t.hpp>
+#include <swarmcomm_msgs/DroneState_t.hpp>
+#include <swarmcomm_msgs/PairOpt_t.hpp>
+#include <swarmcomm_msgs/PairOptResponse_t.hpp>
+
 using namespace swarmcomm_msgs;
 
-#define BACKWARD_HAS_DW 1
-#include <backward.hpp>
-namespace backward
-{
-    backward::SignalHandling sh;
-}
+// #define BACKWARD_HAS_DW 1
+// #include <backward.hpp>
+// namespace backward
+// {
+//     backward::SignalHandling sh;
+// }
 
 #define MAX_SEND_BYTES 40
 
@@ -41,8 +54,10 @@ class UWBRosNodeofNode : public UWBHelperNode {
 
     bool lcm_ok = false;
 
-    ros::Publisher swarm_traj_pub;
-    ros::Subscriber swarm_traj_sub;
+    ros::Publisher swarm_traj_pub, chunk_stamp_pub, chunk_data_pub, drone_state_pub, pair_opt_pub,
+        pair_opt_res_pub;
+    ros::Subscriber swarm_traj_sub, chunk_stamp_sub, chunk_data_sub, drone_state_sub, pair_opt_sub,
+        pair_opt_res_sub;
 
     int latency_buffer_size;
     bool sim_latency;
@@ -70,6 +85,27 @@ public:
         slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
 
+        // Map shared by chunk data
+        chunk_stamp_pub =
+            nh.advertise<plan_env::ChunkStamps>("/multi_map_manager/chunk_stamps_recv", 10);
+        chunk_data_pub =
+            nh.advertise<plan_env::ChunkData>("/multi_map_manager/chunk_data_recv", 1000);
+        drone_state_pub =
+            nh.advertise<exploration_manager::DroneState>("/swarm_expl/drone_state_recv", 10);
+        pair_opt_pub = nh.advertise<exploration_manager::PairOpt>("/swarm_expl/pair_opt_recv", 10);
+        pair_opt_res_pub =
+            nh.advertise<exploration_manager::PairOptResponse>("/swarm_expl/pair_opt_res_recv", 10);
+
+        chunk_stamp_sub = nh.subscribe("/multi_map_manager/chunk_stamps_send", 10,
+            &UWBRosNodeofNode::broadcast_chunk_stamp, this, ros::TransportHints().tcpNoDelay());
+        chunk_data_sub = nh.subscribe("/multi_map_manager/chunk_data_send", 1000,
+            &UWBRosNodeofNode::broadcast_chunk_data, this, ros::TransportHints().tcpNoDelay());
+        drone_state_sub = nh.subscribe("/swarm_expl/drone_state_send", 10,
+            &UWBRosNodeofNode::broadcast_drone_state, this, ros::TransportHints().tcpNoDelay());
+        pair_opt_sub = nh.subscribe("/swarm_expl/pair_opt_send", 10,
+            &UWBRosNodeofNode::broadcast_pair_opt, this, ros::TransportHints().tcpNoDelay());
+        pair_opt_res_sub = nh.subscribe("/swarm_expl/pair_opt_res_send", 10,
+            &UWBRosNodeofNode::broadcast_pair_opt_res, this, ros::TransportHints().tcpNoDelay());
 
         if (!lcm.good()) {
             ROS_ERROR("LCM %s failed", lcm_uri.c_str());
@@ -80,8 +116,13 @@ public:
         }
         lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
         lcm.subscribe("SWARM_TRAJ", &UWBRosNodeofNode::incoming_bspline_data_callback, this);
+        lcm.subscribe("SWARM_CHUNK_STAMPS", &UWBRosNodeofNode::incoming_chunk_stamp_callback, this);
+        lcm.subscribe("SWARM_CHUNK_DATA", &UWBRosNodeofNode::incoming_chunk_data_callback, this);
+        lcm.subscribe("SWARM_DRONE_STATE", &UWBRosNodeofNode::incoming_drone_state_callback, this);
+        lcm.subscribe("SWARM_PAIR_OPT", &UWBRosNodeofNode::incoming_pair_opt_callback, this);
+        lcm.subscribe(
+            "SWARM_PAIR_OPT_RES", &UWBRosNodeofNode::incoming_pair_opt_res_callback, this);
     }
-
 
     int lcm_handle() {
         return lcm.handle();
@@ -217,6 +258,137 @@ protected:
 
         lcm.publish("SWARM_TRAJ", &_bspl);
 
+    }
+
+    void incoming_chunk_stamp_callback(
+        const lcm::ReceiveBuffer* rbuf, const std::string& chan, const ChunkStamps_t* msg) {
+        if(msg->from_drone_id == self_id) return;
+
+        plan_env::ChunkStamps chunk_stamp;
+        chunk_stamp.from_drone_id = msg->from_drone_id;
+        chunk_stamp.time = msg->time;
+        for (int i = 0; i < msg->drone_num; ++i) {
+          plan_env::IdxList idx_list;
+          idx_list.ids = msg->idx_lists[i].ids;
+          chunk_stamp.idx_lists.push_back(idx_list);
+        }
+
+        chunk_stamp_pub.publish(chunk_stamp);
+    }
+
+    void broadcast_chunk_stamp(const plan_env::ChunkStampsConstPtr& msg) {
+        ChunkStamps_t chunk_stamp;
+        chunk_stamp.from_drone_id = msg->from_drone_id;
+        chunk_stamp.drone_num = msg->idx_lists.size();
+        chunk_stamp.time = msg->time;
+        for (int i =0; i < chunk_stamp.drone_num; ++i) {
+          IdxList_t idx_list;
+          idx_list.id_num = msg->idx_lists[i].ids.size();
+          idx_list.ids = msg->idx_lists[i].ids;
+          chunk_stamp.idx_lists.push_back(idx_list);
+        }
+        lcm.publish("SWARM_CHUNK_STAMPS", &chunk_stamp);
+    }
+
+    void incoming_chunk_data_callback(
+        const lcm::ReceiveBuffer* rbuf, const std::string& chan, const ChunkData_t* msg) {
+        if(msg->from_drone_id == self_id) return;
+
+        plan_env::ChunkData chunk_data;
+        chunk_data.from_drone_id = msg->from_drone_id;
+        chunk_data.to_drone_id = msg->to_drone_id;
+        chunk_data.chunk_drone_id = msg->chunk_drone_id;
+        chunk_data.idx = msg->idx;
+
+        for(int i = 0; i < msg->voxel_num; ++i) {
+          chunk_data.voxel_adrs.push_back(msg->voxel_adrs[i]);
+          chunk_data.voxel_occ_.push_back(msg->voxel_occ_[i]);
+        }
+        chunk_data_pub.publish(chunk_data);
+    }
+
+    void broadcast_chunk_data(const plan_env::ChunkDataConstPtr& msg) {
+        ChunkData_t chunk_data;
+        chunk_data.from_drone_id = msg->from_drone_id;
+        chunk_data.to_drone_id = msg->to_drone_id;
+        chunk_data.chunk_drone_id = msg->chunk_drone_id;
+        chunk_data.idx = msg->idx;
+
+        chunk_data.voxel_num = msg->voxel_adrs.size();
+        for (int i = 0; i < msg->voxel_adrs.size(); ++i) {
+            chunk_data.voxel_adrs.push_back(msg->voxel_adrs[i]);
+            chunk_data.voxel_occ_.push_back(msg->voxel_occ_[i]);
+        }
+        lcm.publish("SWARM_CHUNK_DATA", &chunk_data);
+    }
+
+    void incoming_drone_state_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const DroneState_t* msg){
+        if(msg->drone_id == self_id) return;
+
+        exploration_manager::DroneState ds;
+        ds.drone_id = msg->drone_id;
+        ds.recent_attempt_time = msg->recent_attempt_time;
+        ds.stamp = msg->stamp;
+        ds.grid_ids = msg->grid_ids;
+        ds.pos = msg->pos;
+        ds.vel = msg->vel;
+        ds.yaw = msg->yaw;
+        drone_state_pub.publish(ds);
+    }
+
+    void broadcast_drone_state(const exploration_manager::DroneStateConstPtr& msg) {
+        DroneState_t ds;
+        ds.drone_id = msg->drone_id;
+        ds.recent_attempt_time = msg->recent_attempt_time;
+        ds.stamp = msg->stamp;
+        ds.id_num = msg->grid_ids.size();
+        ds.grid_ids = msg->grid_ids;
+        ds.len = 3;
+        ds.pos = msg->pos;
+        ds.vel = msg->vel;
+        ds.yaw = msg->yaw;
+        lcm.publish("SWARM_DRONE_STATE", &ds);
+    }
+
+    void incoming_pair_opt_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOpt_t* msg){
+        exploration_manager::PairOpt po;
+        po.from_drone_id = msg->from_drone_id;
+        po.to_drone_id = msg->to_drone_id;
+        po.stamp = msg->stamp;
+        po.ego_ids = msg->ego_ids;
+        po.other_ids = msg->other_ids;
+        pair_opt_pub.publish(po);
+    }
+
+    void broadcast_pair_opt(const exploration_manager::PairOptConstPtr& msg) {
+        PairOpt_t po;
+        po.from_drone_id = msg->from_drone_id;
+        po.to_drone_id = msg->to_drone_id;
+        po.stamp = msg->stamp;
+        
+        po.ego_num = msg->ego_ids.size();
+        po.ego_ids = msg->ego_ids;
+        po.other_num = msg->other_ids.size();
+        po.other_ids = msg->other_ids;
+        lcm.publish("SWARM_PAIR_OPT", &po);
+    }
+
+    void incoming_pair_opt_res_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOptResponse_t* msg){
+        exploration_manager::PairOptResponse por;
+        por.from_drone_id = msg->from_drone_id;
+        por.to_drone_id = msg->to_drone_id;
+        por.status = msg->status;
+        por.stamp = msg->stamp;
+        pair_opt_res_pub.publish(por);
+    }
+
+    void broadcast_pair_opt_res(const exploration_manager::PairOptResponseConstPtr& msg) {
+        PairOptResponse_t por;
+        por.from_drone_id = msg->from_drone_id;
+        por.to_drone_id = msg->to_drone_id;
+        por.status = msg->status;
+        por.stamp = msg->stamp;
+        lcm.publish("SWARM_PAIR_OPT_RES", &por);
     }
 
     std::queue<std::vector<uint8_t>> buf_queue;
