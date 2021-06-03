@@ -24,12 +24,16 @@
 #include <exploration_manager/DroneState.h>
 #include <exploration_manager/PairOpt.h>
 #include <exploration_manager/PairOptResponse.h>
+#include <exploration_manager/GridTour.h>
+#include <exploration_manager/HGrid.h>
 
 #include <swarmcomm_msgs/ChunkStamps_t.hpp>
 #include <swarmcomm_msgs/ChunkData_t.hpp>
 #include <swarmcomm_msgs/DroneState_t.hpp>
 #include <swarmcomm_msgs/PairOpt_t.hpp>
 #include <swarmcomm_msgs/PairOptResponse_t.hpp>
+#include <swarmcomm_msgs/HGrid_t.hpp>
+#include <swarmcomm_msgs/GridTour_t.hpp>
 #include <swarm_msgs/swarm_drone_basecoor.h>
 #include <mavlink/swarm/mavlink.h>
 
@@ -58,9 +62,9 @@ class UWBRosNodeofNode : public UWBHelperNode {
     bool lcm_ok = false;
 
     ros::Publisher swarm_traj_pub, chunk_stamp_pub, chunk_data_pub, drone_state_pub, pair_opt_pub,
-        pair_opt_res_pub;
+        pair_opt_res_pub, hgrid_pub, gridtour_pub;
     ros::Subscriber swarm_traj_sub, chunk_stamp_sub, chunk_data_sub, drone_state_sub, pair_opt_sub,
-        pair_opt_res_sub;
+        pair_opt_res_sub, hgrid_sub, gridtour_sub;
 
     int latency_buffer_size;
     bool sim_latency, groundnode;
@@ -99,6 +103,8 @@ public:
         pair_opt_pub = nh.advertise<exploration_manager::PairOpt>("/swarm_expl/pair_opt_recv", 10);
         pair_opt_res_pub =
             nh.advertise<exploration_manager::PairOptResponse>("/swarm_expl/pair_opt_res_recv", 10);
+        hgrid_pub = nh.advertise<exploration_manager::HGrid>("/swarm_expl/hgrid_recv", 10);
+        gridtour_pub = nh.advertise<exploration_manager::GridTour>("/swarm_expl/grid_tour_recv", 10);
 
         basecoor_pub =
             nh.advertise<swarm_drone_basecoor>("basecoor", 10);
@@ -113,6 +119,9 @@ public:
             &UWBRosNodeofNode::broadcast_pair_opt, this, ros::TransportHints().tcpNoDelay());
         pair_opt_res_sub = nh.subscribe("/swarm_expl/pair_opt_res_send", 10,
             &UWBRosNodeofNode::broadcast_pair_opt_res, this, ros::TransportHints().tcpNoDelay());
+        hgrid_sub = nh.subscribe("/swarm_expl/hgrid_send", 10, &UWBRosNodeofNode::broadcast_hgrid, this);
+        gridtour_sub =
+            nh.subscribe("/swarm_expl/grid_tour_send", 10, &UWBRosNodeofNode::broadcast_gridtour, this);
 
         if (!lcm.good()) {
             ROS_ERROR("LCM %s failed", lcm_uri.c_str());
@@ -129,6 +138,8 @@ public:
         lcm.subscribe("SWARM_PAIR_OPT", &UWBRosNodeofNode::incoming_pair_opt_callback, this);
         lcm.subscribe(
             "SWARM_PAIR_OPT_RES", &UWBRosNodeofNode::incoming_pair_opt_res_callback, this);
+        lcm.subscribe("SWARM_HGRID", &UWBRosNodeofNode::incoming_hgrid_callback, this);
+        lcm.subscribe("SWARM_GRIDTOUR", &UWBRosNodeofNode::incoming_gridtour_callback, this);
     }
 
     int lcm_handle() {
@@ -363,6 +374,8 @@ protected:
     }
 
     void incoming_pair_opt_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOpt_t* msg){
+        if(msg->from_drone_id == self_id) return;
+
         exploration_manager::PairOpt po;
         po.from_drone_id = msg->from_drone_id;
         po.to_drone_id = msg->to_drone_id;
@@ -386,6 +399,8 @@ protected:
     }
 
     void incoming_pair_opt_res_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOptResponse_t* msg){
+        if(msg->from_drone_id == self_id) return;
+
         exploration_manager::PairOptResponse por;
         por.from_drone_id = msg->from_drone_id;
         por.to_drone_id = msg->to_drone_id;
@@ -401,6 +416,71 @@ protected:
         por.status = msg->status;
         por.stamp = msg->stamp;
         lcm.publish("SWARM_PAIR_OPT_RES", &por);
+    }
+
+    void incoming_hgrid_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan,
+                                        const HGrid_t* msg) {
+        exploration_manager::HGrid hg;
+        hg.stamp = msg->stamp;
+        for(int i =0; i < msg->pt_num; ++i) {
+            geometry_msgs::Point pt1, pt2;
+            pt1.x = msg->points1_x[i];
+            pt1.y = msg->points1_y[i];
+            pt1.z = msg->points1_z[i];
+            hg.points1.push_back(pt1);
+
+            pt2.x = msg->points2_x[i];
+            pt2.y = msg->points2_y[i];
+            pt2.z = msg->points2_z[i];
+            hg.points2.push_back(pt2);
+        }
+        hgrid_pub.publish(hg);
+    }
+
+    void broadcast_hgrid(const exploration_manager::HGridConstPtr& msg) {
+        HGrid_t hg;
+        hg.stamp = msg->stamp;
+        hg.pt_num = msg->points1.size();
+
+        for(int i=0; i < hg.pt_num; ++i) {
+            hg.points1_x.push_back( float(msg->points1[i].x) );
+            hg.points1_y.push_back( float(msg->points1[i].y) );
+            hg.points1_z.push_back( float(msg->points1[i].z) );
+
+            hg.points2_x.push_back( float(msg->points2[i].x) );
+            hg.points2_y.push_back( float(msg->points2[i].y) );
+            hg.points2_z.push_back( float(msg->points2[i].z) );
+        }
+        lcm.publish("SWARM_HGRID", &hg);
+    }
+
+
+    void incoming_gridtour_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan,
+                                        const GridTour_t* msg) {
+         exploration_manager::GridTour gt;
+         gt.drone_id = msg->drone_id;
+         gt.stamp = msg->stamp;
+         for (int i = 0; i < msg->pt_num; ++i) {
+           geometry_msgs::Point pt;
+           pt.x = msg->points_x[i];
+           pt.y = msg->points_y[i];
+           pt.z = msg->points_z[i];
+           gt.points.push_back(pt);
+         }
+         gridtour_pub.publish(gt);
+    }
+
+    void broadcast_gridtour(const exploration_manager::GridTourConstPtr& msg) {
+        GridTour_t gt;
+        gt.drone_id = msg->drone_id;
+        gt.stamp = msg->stamp;
+        gt.pt_num = msg->points.size();
+        for (int i = 0; i < gt.pt_num; ++i) {
+          gt.points_x.push_back(float(msg->points[i].x)  );
+          gt.points_y.push_back(float(msg->points[i].y)  );
+          gt.points_z.push_back(float(msg->points[i].z)  );
+        }
+        lcm.publish("SWARM_GRIDTOUR", &gt);
     }
 
     std::queue<std::vector<uint8_t>> buf_queue;
