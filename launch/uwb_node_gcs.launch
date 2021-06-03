@@ -13,6 +13,7 @@
         <param name="recv_freq" value="100" type="double" />
         <param name="self_id" value="$(arg self_id)" type="int"/>
         <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj" />
+        <param name="groundnode" value="true" />
     </node>
-    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
+    <!-- <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" /> -->
 </launch>

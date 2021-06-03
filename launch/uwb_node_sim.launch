@@ -4,7 +4,7 @@
     <arg name="send_buffer" default="100" />
     <arg name="send_freq" default="100" />
     <arg name="output" default="screen" />
-    <arg name="self_id" default="1" />
+    <arg name="self_id" default="4" />
     <arg name="sim_latency" default="false" />
     <arg name="latency_buffer_size" default="100" />
     <node pkg="inf_uwb_ros" name="uwb_node_$(arg self_id)" type="inf_uwb_ros_node" output="$(arg output)">
@@ -16,5 +16,6 @@
         <param name="self_id" value="$(arg self_id)" type="int"/>
         <param name="sim_latency" value="$(arg sim_latency)" type="bool" />
         <param name="latency_buffer_size" value="$(arg latency_buffer_size)" type="int" />
+        <param name="groundnode" value="true" type="bool" />
     </node>
 </launch>

@@ -30,8 +30,11 @@
 #include <swarmcomm_msgs/DroneState_t.hpp>
 #include <swarmcomm_msgs/PairOpt_t.hpp>
 #include <swarmcomm_msgs/PairOptResponse_t.hpp>
+#include <swarm_msgs/swarm_drone_basecoor.h>
+#include <mavlink/swarm/mavlink.h>
 
 using namespace swarmcomm_msgs;
+using namespace swarm_msgs;
 
 // #define BACKWARD_HAS_DW 1
 // #include <backward.hpp>
@@ -60,7 +63,7 @@ class UWBRosNodeofNode : public UWBHelperNode {
         pair_opt_res_sub;
 
     int latency_buffer_size;
-    bool sim_latency;
+    bool sim_latency, groundnode;
 
 public:
     UWBRosNodeofNode(std::string serial_name, std::string lcm_uri, int baudrate, ros::NodeHandle nh, bool enable_debug): 
@@ -74,6 +77,7 @@ public:
 
         nh.param<int>("latency_buffer_size", latency_buffer_size, 100);
         nh.param<bool>("sim_latency", sim_latency, false);
+        nh.param<bool>("groundnode", groundnode, false);
 
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
@@ -95,6 +99,9 @@ public:
         pair_opt_pub = nh.advertise<exploration_manager::PairOpt>("/swarm_expl/pair_opt_recv", 10);
         pair_opt_res_pub =
             nh.advertise<exploration_manager::PairOptResponse>("/swarm_expl/pair_opt_res_recv", 10);
+
+        basecoor_pub =
+            nh.advertise<swarm_drone_basecoor>("basecoor", 10);
 
         chunk_stamp_sub = nh.subscribe("/multi_map_manager/chunk_stamps_send", 10,
             &UWBRosNodeofNode::broadcast_chunk_stamp, this, ros::TransportHints().tcpNoDelay());
@@ -148,6 +155,10 @@ protected:
             data.remote_id = msg->sender_id;
             data.data = msg->mavlink_msg;
             broadcast_data_pub.publish(data);
+
+            if (groundnode) {
+                parse_mavlink_data(msg->mavlink_msg, msg->sender_id);
+            }
         }
     }
     // void
@@ -287,6 +298,7 @@ protected:
           idx_list.ids = msg->idx_lists[i].ids;
           chunk_stamp.idx_lists.push_back(idx_list);
         }
+        // ROS_INFO("Sending broadcast_chunk_stamp");
         lcm.publish("SWARM_CHUNK_STAMPS", &chunk_stamp);
     }
 
@@ -422,7 +434,7 @@ protected:
     virtual void on_broadcast_data_recv(int _id, Buffer _msg) override {
         UWBHelperNode::on_broadcast_data_recv(_id, _msg);
         // printf("ID %d Recv broadcast data %s", _id, (char*)_msg.data());
-        // printf("ID %d Recv broadcast data len %d\n", _id, _msg.size());
+        // printf("ID %d Recv broadcast data len %d groundnode %d\n", _id, _msg.size(), groundnode);
 
         incoming_broadcast_data data;
         data.header.stamp = ros::Time::now();
@@ -430,6 +442,9 @@ protected:
         data.remote_id = _id;
         data.data = _msg;
         broadcast_data_pub.publish(data);
+        if (groundnode) {
+            parse_mavlink_data(_msg, _id);
+        }
     }
 
     virtual void on_system_time_update() override {
@@ -470,8 +485,63 @@ protected:
         }
     }
 
+
+    void process_node_based_fused(mavlink_message_t & msg, int sender_id) {
+        mavlink_node_based_fused_t basecoor;
+        mavlink_msg_node_based_fused_decode(&msg, &basecoor);
+        swarm_drone_basecoor _basecoor;
+        _basecoor.header.stamp = ros::Time::now(); //TODO: modified time here
+        _basecoor.self_id = sender_id;
+        _basecoor.ids.push_back(basecoor.target_id);
+        geometry_msgs::Point pos;
+        geometry_msgs::Vector3 cov;
+
+        pos.x = basecoor.rel_x/1000.0;
+        pos.y = basecoor.rel_y/1000.0;
+        pos.z = basecoor.rel_z/1000.0;
+        
+        cov.x = basecoor.cov_x/1000.0;
+        cov.y = basecoor.cov_y/1000.0;
+        cov.z = basecoor.cov_z/1000.0;
+
+        double yaw = basecoor.rel_yaw_offset/1000.0;
+        double cov_yaw = basecoor.cov_yaw/1000.0;
+
+        _basecoor.drone_basecoor.push_back(pos);
+        _basecoor.drone_baseyaw.push_back(yaw);
+        _basecoor.position_cov.push_back(cov);
+        _basecoor.yaw_cov.push_back(cov_yaw);
+
+        basecoor_pub.publish(_basecoor);
+    }
+
+    void parse_mavlink_data(Buffer buf, int sender_id) {
+        if (sender_id == self_id) {
+            ROS_WARN("Receive self message; Return");
+            return;
+        }
+        mavlink_message_t msg;
+        mavlink_status_t status;
+
+        for (uint8_t c : buf) {
+            //Use different to prevent invaild parse
+            int ret = mavlink_parse_char(0, c, &msg, &status);
+            if (ret) {
+                switch (msg.msgid) {
+                    case MAVLINK_MSG_ID_NODE_BASED_FUSED: {
+                        process_node_based_fused(msg, sender_id);
+                    }
+                }
+            } else {
+                if (ret == MAVLINK_FRAMING_BAD_CRC) {
+                    ROS_WARN("Mavlink parse error");   
+                }
+            }
+        }
+    }
+
 private:
-    ros::Publisher remote_node_pub, broadcast_data_pub, time_reference_pub;
+    ros::Publisher remote_node_pub, broadcast_data_pub, time_reference_pub, basecoor_pub;
     ros::Subscriber recv_bdmsg;
 
     std::vector<uint8_t> send_buffer;
