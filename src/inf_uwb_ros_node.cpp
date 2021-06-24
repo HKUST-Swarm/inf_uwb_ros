@@ -576,7 +576,7 @@ protected:
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {
-            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld send lcm_msg kB/s recv lcm_msg %dkB/s\n", 
+            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld send lcm_msg %dkB/s recv lcm_msg %dkB/s\n", 
                 count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), count_send_lcm/1024*2, count_remote/1024*2);
             count_remote = 0;
             count_send_lcm = 0;
