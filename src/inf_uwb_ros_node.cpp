@@ -83,6 +83,7 @@ public:
         nh.param<bool>("sim_latency", sim_latency, false);
         nh.param<bool>("groundnode", groundnode, false);
 
+        last = ros::Time::now();
         remote_node_pub = nh.advertise<remote_uwb_info>("remote_nodes", 1);
         broadcast_data_pub = nh.advertise<incoming_broadcast_data>("incoming_broadcast_data", 1);
         swarm_traj_pub = nh.advertise<bspline::Bspline>("/planning/swarm_traj_recv", 10);
@@ -151,6 +152,11 @@ protected:
 
     int count_remote = 0;
     int count_send_lcm = 0;
+
+    int count_remote_last = 0;
+    int count_send_lcm_last = 0;
+
+    ros::Time last;
     void on_swarm_data_lcm(const lcm::ReceiveBuffer* rbuf,
                 const std::string& chan, 
                 const SwarmData_t* msg) {
@@ -576,10 +582,14 @@ protected:
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {
-            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld send lcm_msg %dkB/s recv lcm_msg %dkB/s\n", 
-                count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), count_send_lcm/1024*2, count_remote/1024*2);
-            count_remote = 0;
-            count_send_lcm = 0;
+            double dt = (ros::Time::now() - last).toSec();
+            double rate_send = (count_send_lcm - count_send_lcm_last)/dt/1024;
+            double rate_recv = (count_remote - count_remote_last)/dt/1024;
+            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld lcm send %3.1fkB/s recv %3.1fkB/s cul send %dkB recv %d kB\n", 
+                count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), rate_send, rate_recv, count_send_lcm, count_remote);
+            count_send_lcm_last = count_send_lcm;
+            count_remote_last = count_remote;
+            last = ros::Time::now();
             fflush(stdout);
         }
     }
