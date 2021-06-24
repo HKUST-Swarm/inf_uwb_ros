@@ -150,14 +150,15 @@ public:
 protected:
 
     int count_remote = 0;
+    int count_send_lcm = 0;
     void on_swarm_data_lcm(const lcm::ReceiveBuffer* rbuf,
                 const std::string& chan, 
                 const SwarmData_t* msg) {
         // on_broadcast_data_recv(msg->sender_id, msg->mavlink_msg);
 	auto _msg_id = msg->msg_id;
 	//ROS_INFO("Recv remote %d", _msg_id);
-        count_remote ++;
         if (msg->sender_id != self_id) {
+            count_remote += msg->getEncodedSize();
             // ROS_INFO_THROTTLE(1.0, "On remote lcm data");
             ros::Time stamp(msg->sec, msg->nsec);
             incoming_broadcast_data data;
@@ -216,8 +217,10 @@ protected:
     void incoming_bspline_data_callback(const lcm::ReceiveBuffer* rbuf,
         const std::string& chan, 
         const Bspline_t* msg) {
+
         if(msg->drone_id != self_id) 
         {
+            count_remote += msg->getEncodedSize();
             bspline::Bspline bspl;
             bspl.start_time = ros::Time(msg->start_time_sec, msg->start_time_nsec);
             bspl.drone_id = msg->drone_id;
@@ -277,7 +280,7 @@ protected:
         _bspl.msg_id = rand() + _bspl.start_time_nsec + _bspl.traj_id;
         // sent_msgs.insert(_bspl.msg_id);
         // ROS_INFO("BSPLINE SIZE %ld", _bspl.getEncodedSize());
-
+        count_send_lcm += _bspl.getEncodedSize();
         lcm.publish("SWARM_TRAJ", &_bspl);
 
     }
@@ -285,6 +288,7 @@ protected:
     void incoming_chunk_stamp_callback(
         const lcm::ReceiveBuffer* rbuf, const std::string& chan, const ChunkStamps_t* msg) {
         if(msg->from_drone_id == self_id) return;
+        count_remote += msg->getEncodedSize();
 
         plan_env::ChunkStamps chunk_stamp;
         chunk_stamp.from_drone_id = msg->from_drone_id;
@@ -310,12 +314,14 @@ protected:
           chunk_stamp.idx_lists.push_back(idx_list);
         }
         // ROS_INFO("Sending broadcast_chunk_stamp");
+        count_send_lcm += chunk_stamp.getEncodedSize();
         lcm.publish("SWARM_CHUNK_STAMPS", &chunk_stamp);
     }
 
     void incoming_chunk_data_callback(
         const lcm::ReceiveBuffer* rbuf, const std::string& chan, const ChunkData_t* msg) {
         if(msg->from_drone_id == self_id) return;
+        count_remote += msg->getEncodedSize();
 
         plan_env::ChunkData chunk_data;
         chunk_data.from_drone_id = msg->from_drone_id;
@@ -342,11 +348,13 @@ protected:
             chunk_data.voxel_adrs.push_back(msg->voxel_adrs[i]);
             chunk_data.voxel_occ_.push_back(msg->voxel_occ_[i]);
         }
+        count_send_lcm += chunk_data.getEncodedSize();
         lcm.publish("SWARM_CHUNK_DATA", &chunk_data);
     }
 
     void incoming_drone_state_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const DroneState_t* msg){
         if(msg->drone_id == self_id) return;
+        count_remote += msg->getEncodedSize();
 
         exploration_manager::DroneState ds;
         ds.drone_id = msg->drone_id;
@@ -370,12 +378,13 @@ protected:
         ds.pos = msg->pos;
         ds.vel = msg->vel;
         ds.yaw = msg->yaw;
+        count_send_lcm += ds.getEncodedSize();
         lcm.publish("SWARM_DRONE_STATE", &ds);
     }
 
     void incoming_pair_opt_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOpt_t* msg){
         if(msg->from_drone_id == self_id) return;
-
+        count_remote += msg->getEncodedSize();
         exploration_manager::PairOpt po;
         po.from_drone_id = msg->from_drone_id;
         po.to_drone_id = msg->to_drone_id;
@@ -395,12 +404,13 @@ protected:
         po.ego_ids = msg->ego_ids;
         po.other_num = msg->other_ids.size();
         po.other_ids = msg->other_ids;
+        count_send_lcm += po.getEncodedSize();
         lcm.publish("SWARM_PAIR_OPT", &po);
     }
 
     void incoming_pair_opt_res_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan, const PairOptResponse_t* msg){
         if(msg->from_drone_id == self_id) return;
-
+        count_remote += msg->getEncodedSize();
         exploration_manager::PairOptResponse por;
         por.from_drone_id = msg->from_drone_id;
         por.to_drone_id = msg->to_drone_id;
@@ -415,11 +425,14 @@ protected:
         por.to_drone_id = msg->to_drone_id;
         por.status = msg->status;
         por.stamp = msg->stamp;
+        count_send_lcm += por.getEncodedSize();
         lcm.publish("SWARM_PAIR_OPT_RES", &por);
     }
 
     void incoming_hgrid_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan,
                                         const HGrid_t* msg) {
+        // if(msg->from_drone_id == self_id) return;
+        count_remote += msg->getEncodedSize();
         exploration_manager::HGrid hg;
         hg.stamp = msg->stamp;
         for(int i =0; i < msg->pt_num; ++i) {
@@ -451,12 +464,15 @@ protected:
             hg.points2_y.push_back( float(msg->points2[i].y) );
             hg.points2_z.push_back( float(msg->points2[i].z) );
         }
+        count_send_lcm += hg.getEncodedSize();
         lcm.publish("SWARM_HGRID", &hg);
     }
 
 
     void incoming_gridtour_callback(const lcm::ReceiveBuffer* rbuf, const std::string& chan,
                                         const GridTour_t* msg) {
+        // if(msg->from_drone_id == self_id) return;
+        count_remote += msg->getEncodedSize();
          exploration_manager::GridTour gt;
          gt.drone_id = msg->drone_id;
          gt.stamp = msg->stamp;
@@ -480,6 +496,7 @@ protected:
           gt.points_y.push_back(float(msg->points[i].y)  );
           gt.points_z.push_back(float(msg->points[i].z)  );
         }
+        count_send_lcm += gt.getEncodedSize();
         lcm.publish("SWARM_GRIDTOUR", &gt);
     }
 
@@ -507,7 +524,7 @@ protected:
         data.sender_id = self_id;
 
         data.msg_id = rand() + data.nsec;
-
+        count_send_lcm += data.getEncodedSize();
         lcm.publish("SWARM_DATA", &data);
     }
     
@@ -559,8 +576,10 @@ protected:
         }
         remote_node_pub.publish(info);
         if (count++ % 50 == 1) {
-            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld lcm_msg %d/s\n", count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), count_remote*2);
+            ROS_INFO("[c%d,ts %d] ID %d nodes total %d active %d send_buf %ld send lcm_msg kB/s recv lcm_msg %dkB/s\n", 
+                count, sys_time, self_id, info.remote_node_num, vaild_node_quantity, send_buffer.size(), count_send_lcm/1024*2, count_remote/1024*2);
             count_remote = 0;
+            count_send_lcm = 0;
             fflush(stdout);
         }
     }
