@@ -4,7 +4,7 @@
     <arg name="send_buffer" default="100" />
     <arg name="send_freq" default="100" />
     <arg name="output" default="screen" />
-    <arg name="self_id" default="4" />
+    <arg name="self_id" default="9" />
     <node pkg="inf_uwb_ros" name="uwb_node" type="inf_uwb_ros_node" output="$(arg output)" >
         <param name="serial_name" value="$(arg serial_name)" />
         <param name="baudrate" value="$(arg baudrate)" type="int" />
@@ -27,8 +27,8 @@
         <remap from="/multi_map_manager/chunk_data_send" to="/multi_map_manager/chunk_data_send_$(arg self_id)" />
         <remap from="/multi_map_manager/chunk_stamps_recv" to="/multi_map_manager/chunk_stamps_recv_$(arg self_id)" />
         <remap from="/multi_map_manager/chunk_data_recv" to="/multi_map_manager/chunk_data_recv_$(arg self_id)" />
-        <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj_recv_$(arg self_id)" />
-        <remap from="/planning/swarm_traj_send" to="/planning/swarm_traj_send_$(arg self_id)" />
+        <!-- <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj_recv_$(arg self_id)" /> 
+        <remap from="/planning/swarm_traj_send" to="/planning/swarm_traj_send_$(arg self_id)" /> -->
     </node>
 
 </launch>
