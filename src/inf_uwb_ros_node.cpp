@@ -291,7 +291,7 @@ protected:
 
         _bspl.msg_id = rand() + _bspl.start_time_nsec + _bspl.traj_id;
         // sent_msgs.insert(_bspl.msg_id);
-        // ROS_INFO("BSPLINE SIZE %ld", _bspl.getEncodedSize());
+        // ROS_INFO("Broadcast bspline size %ld", _bspl.getEncodedSize());
         count_send_lcm += _bspl.getEncodedSize();
         lcm.publish("SWARM_TRAJ", &_bspl);
 
