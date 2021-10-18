@@ -16,20 +16,5 @@
         <param name="self_id" value="$(arg self_id)" type="int"/>
         <param name="sim_latency" value="$(arg sim_latency)" type="bool" />
         <param name="latency_buffer_size" value="$(arg latency_buffer_size)" type="int" />
-
-        <remap from="/swarm_expl/drone_state_send" to="/swarm_expl/drone_state_send_$(arg self_id)" />
-        <remap from="/swarm_expl/drone_state_recv" to="/swarm_expl/drone_state_recv_$(arg self_id)" />
-        <remap from="/swarm_expl/pair_opt_send" to="/swarm_expl/pair_opt_send_$(arg self_id)" />
-        <remap from="/swarm_expl/pair_opt_recv" to="/swarm_expl/pair_opt_recv_$(arg self_id)" />
-        <remap from="/swarm_expl/pair_opt_res_send" to="/swarm_expl/pair_opt_res_send_$(arg self_id)" />
-        <remap from="/swarm_expl/pair_opt_res_recv" to="/swarm_expl/pair_opt_res_recv_$(arg self_id)" />
-        <remap from="/swarm_expl/grid_tour_send" to="/swarm_expl/grid_tour_send_$(arg self_id)" />
-        <remap from="/swarm_expl/hgrid_send" to="/swarm_expl/hgrid_send_$(arg self_id)" />
-        <remap from="/multi_map_manager/chunk_stamps_send" to="/multi_map_manager/chunk_stamps_send_$(arg self_id)" />
-        <remap from="/multi_map_manager/chunk_data_send" to="/multi_map_manager/chunk_data_send_$(arg self_id)" />
-        <remap from="/multi_map_manager/chunk_stamps_recv" to="/multi_map_manager/chunk_stamps_recv_$(arg self_id)" />
-        <remap from="/multi_map_manager/chunk_data_recv" to="/multi_map_manager/chunk_data_recv_$(arg self_id)" />
-        <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj_recv_$(arg self_id)" />
-        <remap from="/planning/swarm_traj_send" to="/planning/swarm_traj_send_$(arg self_id)" />
     </node>
 </launch>
