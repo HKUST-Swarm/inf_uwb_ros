@@ -19,6 +19,7 @@
 #include <queue>
 
 // Msg for swarm exploration
+#ifdef PROXY_EXPO_MSGS
 #include <plan_env/ChunkStamps.h>  
 #include <plan_env/ChunkData.h>
 #include <exploration_manager/DroneState.h>
@@ -26,6 +27,7 @@
 #include <exploration_manager/PairOptResponse.h>
 #include <exploration_manager/GridTour.h>
 #include <exploration_manager/HGrid.h>
+#endif
 
 #include <swarmcomm_msgs/ChunkStamps_t.hpp>
 #include <swarmcomm_msgs/ChunkData_t.hpp>
@@ -94,6 +96,10 @@ public:
         slow_timer = nh.createTimer(ros::Duration(1/send_freq), &UWBRosNodeofNode::send_broadcast_data_callback, this);
         time_reference_pub = nh.advertise<sensor_msgs::TimeReference>("time_ref", 1);
 
+        basecoor_pub =
+            nh.advertise<swarm_drone_basecoor>("basecoor", 10);
+
+#ifdef PROXY_EXPO_MSGS
         // Map shared by chunk data
         chunk_stamp_pub =
             nh.advertise<plan_env::ChunkStamps>("/multi_map_manager/chunk_stamps_recv", 10);
@@ -106,9 +112,6 @@ public:
             nh.advertise<exploration_manager::PairOptResponse>("/swarm_expl/pair_opt_res_recv", 10);
         hgrid_pub = nh.advertise<exploration_manager::HGrid>("/swarm_expl/hgrid_recv", 10);
         gridtour_pub = nh.advertise<exploration_manager::GridTour>("/swarm_expl/grid_tour_recv", 10);
-
-        basecoor_pub =
-            nh.advertise<swarm_drone_basecoor>("basecoor", 10);
 
         chunk_stamp_sub = nh.subscribe("/multi_map_manager/chunk_stamps_send", 10,
             &UWBRosNodeofNode::broadcast_chunk_stamp, this, ros::TransportHints().tcpNoDelay());
@@ -124,15 +127,6 @@ public:
         gridtour_sub =
             nh.subscribe("/swarm_expl/grid_tour_send", 10, &UWBRosNodeofNode::broadcast_gridtour, this);
 
-        if (!lcm.good()) {
-            ROS_ERROR("LCM %s failed", lcm_uri.c_str());
-            // exit(-1);
-        } else {
-            ROS_INFO("LCM OK");
-            lcm_ok = true;
-        }
-        lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
-        lcm.subscribe("SWARM_TRAJ", &UWBRosNodeofNode::incoming_bspline_data_callback, this);
         lcm.subscribe("SWARM_CHUNK_STAMPS", &UWBRosNodeofNode::incoming_chunk_stamp_callback, this);
         lcm.subscribe("SWARM_CHUNK_DATA", &UWBRosNodeofNode::incoming_chunk_data_callback, this);
         lcm.subscribe("SWARM_DRONE_STATE", &UWBRosNodeofNode::incoming_drone_state_callback, this);
@@ -141,6 +135,18 @@ public:
             "SWARM_PAIR_OPT_RES", &UWBRosNodeofNode::incoming_pair_opt_res_callback, this);
         lcm.subscribe("SWARM_HGRID", &UWBRosNodeofNode::incoming_hgrid_callback, this);
         lcm.subscribe("SWARM_GRIDTOUR", &UWBRosNodeofNode::incoming_gridtour_callback, this);
+#endif
+        lcm.subscribe("SWARM_DATA", &UWBRosNodeofNode::on_swarm_data_lcm, this);
+        lcm.subscribe("SWARM_TRAJ", &UWBRosNodeofNode::incoming_bspline_data_callback, this);
+
+        if (!lcm.good()) {
+            ROS_ERROR("LCM %s failed", lcm_uri.c_str());
+            // exit(-1);
+        } else {
+            ROS_INFO("LCM OK");
+            lcm_ok = true;
+        }
+
     }
 
     int lcm_handle() {
@@ -291,6 +297,7 @@ protected:
 
     }
 
+#ifdef PROXY_EXPO_MSGS
     void incoming_chunk_stamp_callback(
         const lcm::ReceiveBuffer* rbuf, const std::string& chan, const ChunkStamps_t* msg) {
         if(msg->from_drone_id == self_id) return;
@@ -505,6 +512,7 @@ protected:
         count_send_lcm += gt.getEncodedSize();
         lcm.publish("SWARM_GRIDTOUR", &gt);
     }
+#endif
 
     std::queue<std::vector<uint8_t>> buf_queue;
     virtual void send_by_lcm(std::vector<uint8_t> buf, ros::Time stamp) {
