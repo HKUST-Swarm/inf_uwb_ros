@@ -16,6 +16,8 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   std_msgs
   swarmcomm_msgs
+  swarm_msgs
+  bspline
 )
 
 find_package(lcm REQUIRED)

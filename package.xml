@@ -62,6 +62,9 @@
   <build_export_depend>swarm_msgs</build_export_depend>
   <build_depend>swarm_msgs</build_depend>
   <build_depend>swarmcomm_msgs</build_depend>
+  <build_export_depend>bspline</build_export_depend>
+  <build_depend>bspline</build_depend>
+  <exec_depend>bspline</exec_depend>
   <exec_depend>swarmcomm_msgs</exec_depend>
   <exec_depend>swarm_msgs</exec_depend>
 
