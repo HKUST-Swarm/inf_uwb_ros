@@ -15,25 +15,18 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  swarmcomm_msgs
   swarm_msgs
+  bspline
 )
 
-add_message_files(
-        FILES
-        remote_uwb_info.msg
-        incoming_broadcast_data.msg
-        data_buffer.msg
-)
+find_package(lcm REQUIRED)
 
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-)
 
 catkin_package(
  #INCLUDE_DIRS include
 #  LIBRARIES infinity_uwb_ros
- CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs swarmcomm_msgs
 #  DEPENDS system_lib
 )
 
@@ -54,11 +47,6 @@ add_executable(${PROJECT_NAME}_node
   src/uwb_helper.cpp
 )
 
-
-
-
-
-
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -72,6 +60,8 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 ## Specify libraries to link a library or executable target against
  target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
+  lcm
+  dw
  )
 
 
