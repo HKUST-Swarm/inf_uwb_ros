@@ -31,3 +31,5 @@ _ReSharper*/
 #Nuget packages folder
 packages/
 *.pyc
+.vscode/
+build/

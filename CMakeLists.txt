@@ -2,8 +2,9 @@ cmake_minimum_required(VERSION 2.8.3)
 project(inf_uwb_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+add_compile_options(-std=c++11)
+set(CMAKE_BUILD_TYPE "Release")
+set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -Wall")
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
@@ -14,25 +15,18 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  swarmcomm_msgs
   swarm_msgs
+  bspline
 )
 
-add_message_files(
-        FILES
-        remote_uwb_info.msg
-        incoming_broadcast_data.msg
-        data_buffer.msg
-)
+find_package(lcm REQUIRED)
 
-generate_messages(
-        DEPENDENCIES
-        std_msgs
-)
 
 catkin_package(
  #INCLUDE_DIRS include
 #  LIBRARIES infinity_uwb_ros
- CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs
+ CATKIN_DEPENDS roscpp rospy std_msgs swarm_msgs swarmcomm_msgs
 #  DEPENDS system_lib
 )
 
@@ -53,11 +47,6 @@ add_executable(${PROJECT_NAME}_node
   src/uwb_helper.cpp
 )
 
-
-
-
-
-
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
 ## target back to the shorter version for ease of user use
@@ -71,6 +60,8 @@ add_dependencies(${PROJECT_NAME}_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catk
 ## Specify libraries to link a library or executable target against
  target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
+  lcm
+  dw
  )
 
 
@@ -80,7 +71,3 @@ install(DIRECTORY include/${PROJECT_NAME}/
   FILES_MATCHING PATTERN "*.h"
   PATTERN ".svn" EXCLUDE
 )
-
-
-
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
