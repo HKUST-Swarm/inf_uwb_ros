@@ -5,6 +5,7 @@
     <arg name="send_freq" default="100" />
     <arg name="output" default="screen" />
     <arg name="self_id" default="9" />
+    <arg name="enable_websocket" default="true" />
     <node pkg="inf_uwb_ros" name="uwb_node" type="inf_uwb_ros_node" output="$(arg output)" >
         <param name="serial_name" value="$(arg serial_name)" />
         <param name="baudrate" value="$(arg baudrate)" type="int" />
@@ -30,5 +31,5 @@
         <!-- <remap from="/planning/swarm_traj_recv" to="/planning/swarm_traj_recv_$(arg self_id)" /> 
         <remap from="/planning/swarm_traj_send" to="/planning/swarm_traj_send_$(arg self_id)" /> -->
     </node>
-
+    <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" if="$(arg enable_websocket)" />
 </launch>
