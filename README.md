@@ -6,7 +6,7 @@ This node is for infinity UWB module, which can be used to measure distance and 
 By default, we direct plug-in the infinity UWB to the manifold by USB port. Which will use serial named /dev/ttyUSB0 and 921600 as its baudrate
 
 ```bash
-roslaunch infinity_uwb_ros uwb_node_manifold2.launch
+roslaunch infinity_uwb_ros uwb_node.launch
 ```
 
 Now we can only send no more than 250 byte data one time and use the send rate of 50hz

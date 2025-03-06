@@ -6,6 +6,9 @@
 #include <stdio.h>
 #include <string>
 #include <vector>
+#include <unistd.h>
+
+#define MAX_DRONE_NUM 10
 
 #pragma pack(push, 1)
 struct RemoteNodeFrame2 {
@@ -63,16 +66,26 @@ public:
                   bool enable_debug_output = false);
     std::vector<uint8_t> buf;
     int self_id;
-    int sys_time;
+    int sys_time = -1;
     int vaild_node_quantity = 0;
 
     uint8_t recv_type_now = -1;
+
+    int64_t sum_check = 0;
 
     void read_and_parse();
 
     void send_broadcast_data(std::vector<uint8_t> msg);
 
+    bool uwb_ok = false;
+
+    void close_port() {
+        printf("Closing port\n");
+        close(serial_fd);
+    }
+
 protected:
+    void reset_checksum();
     void delete_first_n_buf(int _len);
     int parse_data();
 
@@ -90,6 +103,8 @@ private:
     int serial_fd;
     void configure_port(int baudrate);
     bool open_port(std::string serial_name, int baudrate);
+
+
 
     uint8_t read_byte_from_serial();
     int serial_available_bytes();
